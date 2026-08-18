@@ -4,7 +4,6 @@ import { useData } from '../../context/DataContext';
 import { useTheme } from '../../context/ThemeContext';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { BrandLogo } from '../common/BrandLogo';
-import { RealtimeGreetingCard } from '../common/RealtimeGreetingCard';
 import { 
   Music, 
   Lock, 
@@ -203,12 +202,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
             </p>
           </div>
         </div>
-
-        {/* LỜI CHÀO THỜI GIAN THỰC & LỜI CHÚC VUI VẺ TÂM TRẠNG */}
-        <RealtimeGreetingCard 
-          variant="card"
-          showClock={true}
-        />
 
         {/* Error notification */}
         {error && (
