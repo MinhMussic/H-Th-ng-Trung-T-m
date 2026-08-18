@@ -1,0 +1,178 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "User account authentication and profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier of the user" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Full display name" },
+        "username": { "type": "string", "description": "Account login username" },
+        "role": { "type": "string", "description": "Primary role: ADMIN, TEACHER, STUDENT, PARENT, GUARDIAN, ACCOUNTANT, MANAGER" },
+        "status": { "type": "string", "description": "Account status: active, pending, locked" },
+        "phone": { "type": "string", "description": "Contact phone number" },
+        "avatar": { "type": "string", "description": "Profile picture URL" },
+        "createdAt": { "type": "string", "description": "Account creation ISO date" }
+      },
+      "required": ["uid", "email", "role", "status"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student academic profile and enrollment details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Student unique ID" },
+        "code": { "type": "string", "description": "Student code (e.g., HV001)" },
+        "fullName": { "type": "string", "description": "Student full legal name" },
+        "dateOfBirth": { "type": "string", "description": "Birthday ISO string" },
+        "status": { "type": "string", "description": "Active or paused status" },
+        "enrolledSubjects": { "type": "array", "description": "List of enrolled subject names" },
+        "stars": { "type": "number", "description": "Accumulated gamification stars" },
+        "completedLessons": { "type": "number", "description": "Number of attended lessons" },
+        "totalLessons": { "type": "number", "description": "Total registered quota lessons" }
+      },
+      "required": ["id", "fullName", "code"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Teacher profile, subject specialization, and teaching branch",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Teacher unique ID" },
+        "code": { "type": "string", "description": "Teacher code (e.g., GV001)" },
+        "fullName": { "type": "string", "description": "Teacher full name" },
+        "specialties": { "type": "array", "description": "Instruments and music subjects taught" },
+        "branchId": { "type": "string", "description": "Campus branch identifier" },
+        "phone": { "type": "string", "description": "Contact phone" },
+        "status": { "type": "string", "description": "Active or inactive" }
+      },
+      "required": ["id", "fullName", "code"]
+    },
+    "Guardian": {
+      "title": "Guardian",
+      "description": "Parent and guardian contact & student relationship records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Guardian profile ID" },
+        "fullName": { "type": "string", "description": "Parent full name" },
+        "phone": { "type": "string", "description": "Parent primary phone number" },
+        "email": { "type": "string", "description": "Parent email" },
+        "studentIds": { "type": "array", "description": "IDs of associated children" }
+      },
+      "required": ["id", "fullName", "phone"]
+    },
+    "MusicClass": {
+      "title": "MusicClass",
+      "description": "Class session schedule, teacher assignment, and room booking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Class identifier" },
+        "name": { "type": "string", "description": "Course/Class name" },
+        "subjectId": { "type": "string", "description": "Subject identifier" },
+        "teacherId": { "type": "string", "description": "Assigned teacher ID" },
+        "branchId": { "type": "string", "description": "Branch campus ID" },
+        "roomId": { "type": "string", "description": "Classroom number or studio hall" },
+        "schedule": { "type": "string", "description": "Weekly day and time slot" },
+        "studentIds": { "type": "array", "description": "Enrolled student IDs" }
+      },
+      "required": ["id", "name", "teacherId"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily roll-call entry with status, notes, and star evaluations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Attendance record unique ID" },
+        "studentId": { "type": "string", "description": "Student ID" },
+        "classId": { "type": "string", "description": "Class ID" },
+        "date": { "type": "string", "description": "Date of the class YYYY-MM-DD" },
+        "status": { "type": "string", "description": "present, absent_excused, absent_unexcused, late, makeup" },
+        "starsAwarded": { "type": "number", "description": "Reward stars given by teacher" },
+        "evaluation": { "type": "string", "description": "Teacher feedback on practice" }
+      },
+      "required": ["id", "studentId", "classId", "date", "status"]
+    },
+    "TuitionPayment": {
+      "title": "TuitionPayment",
+      "description": "Tuition invoices, bank transfers, and payment confirmations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Payment receipt ID" },
+        "studentId": { "type": "string", "description": "Student ID" },
+        "amount": { "type": "number", "description": "Tuition amount in VND" },
+        "status": { "type": "string", "description": "pending, completed, rejected" },
+        "paymentMethod": { "type": "string", "description": "vietqr, bank_transfer, cash" },
+        "paidAt": { "type": "string", "description": "Timestamp of payment" }
+      },
+      "required": ["id", "studentId", "amount", "status"]
+    },
+    "Assignment": {
+      "title": "Assignment",
+      "description": "Practice exercises and homework assignments created by teachers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Assignment unique ID" },
+        "title": { "type": "string", "description": "Exercise title" },
+        "description": { "type": "string", "description": "Detailed guidelines and sheet music link" },
+        "teacherId": { "type": "string", "description": "Teacher ID who gave homework" },
+        "studentId": { "type": "string", "description": "Assigned student ID or all" },
+        "dueDate": { "type": "string", "description": "Deadline date string" }
+      },
+      "required": ["id", "title", "teacherId"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Student video practice submissions and teacher grading",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Submission ID" },
+        "assignmentId": { "type": "string", "description": "Assignment ID" },
+        "studentId": { "type": "string", "description": "Student ID" },
+        "videoUrl": { "type": "string", "description": "Submitted performance video link" },
+        "stars": { "type": "number", "description": "Score awarded" },
+        "teacherFeedback": { "type": "string", "description": "Teacher critique notes" },
+        "status": { "type": "string", "description": "submitted, graded" }
+      },
+      "required": ["id", "assignmentId", "studentId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserAccount",
+      "description": "User accounts and authentication credentials"
+    },
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Student records and study profiles"
+    },
+    "/teachers/{teacherId}": {
+      "schema": "Teacher",
+      "description": "Teacher profiles and assigned subjects"
+    },
+    "/guardians/{guardianId}": {
+      "schema": "Guardian",
+      "description": "Parent guardian directory"
+    },
+    "/classes/{classId}": {
+      "schema": "MusicClass",
+      "description": "Class schedules and room rosters"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "AttendanceRecord",
+      "description": "Attendance history and practice evaluations"
+    },
+    "/tuition_payments/{paymentId}": {
+      "schema": "TuitionPayment",
+      "description": "Financial tuition payments and invoices"
+    },
+    "/assignments/{assignmentId}": {
+      "schema": "Assignment",
+      "description": "Student homework tasks and practice assignments"
+    },
+    "/submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Video submissions and feedback records"
+    }
+  }
+}

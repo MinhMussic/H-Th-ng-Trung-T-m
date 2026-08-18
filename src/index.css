@@ -1,0 +1,717 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Default Fallback Primary Color Variables */
+  --primary: #d97706;
+  --primary-rgb: 217, 119, 6;
+  --primary-hover: #b45309;
+  --primary-light: #fffbeb;
+  --primary-light-border: #fde68a;
+  --primary-dark-text: #fbbf24;
+  --primary-dark-bg: rgba(217, 119, 6, 0.18);
+  --primary-gradient-from: #d97706;
+  --primary-gradient-to: #ea580c;
+  --primary-ring: rgba(217, 119, 6, 0.35);
+  --accent-color: #e11d48;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    touch-action: manipulation;
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  body {
+    font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    max-width: 100vw;
+    background: radial-gradient(circle at 10% 20%, rgba(254, 243, 199, 0.35) 0%, rgba(248, 250, 252, 1) 90%);
+  }
+
+  #root {
+    overflow-x: hidden;
+    max-width: 100%;
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-heading {
+    font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  body.dark {
+    background: #0b0f19;
+    color: #f1f5f9;
+  }
+}
+
+/* ==========================================================================
+   DYNAMIC THEME UTILITIES & BUTTONS
+   ========================================================================== */
+
+.bg-theme-primary {
+  background-color: var(--primary) !important;
+}
+
+.hover\:bg-theme-primary-hover:hover {
+  background-color: var(--primary-hover) !important;
+}
+
+.text-theme-primary {
+  color: var(--primary) !important;
+}
+
+.dark .text-theme-primary {
+  color: var(--primary-dark-text) !important;
+}
+
+.border-theme-primary {
+  border-color: var(--primary) !important;
+}
+
+.ring-theme-primary {
+  --tw-ring-color: var(--primary) !important;
+}
+
+.bg-theme-light {
+  background-color: var(--primary-light) !important;
+}
+
+.dark .bg-theme-light {
+  background-color: var(--primary-dark-bg) !important;
+}
+
+.border-theme-light {
+  border-color: var(--primary-light-border) !important;
+}
+
+.bg-theme-gradient {
+  background: linear-gradient(135deg, var(--primary-gradient-from), var(--primary-gradient-to)) !important;
+}
+
+.bg-theme-gradient-subtle {
+  background: linear-gradient(135deg, var(--primary-light), rgba(255, 255, 255, 0.8)) !important;
+}
+
+.dark .bg-theme-gradient-subtle {
+  background: linear-gradient(135deg, var(--primary-dark-bg), rgba(15, 23, 42, 0.8)) !important;
+}
+
+/* Primary Action Button */
+.btn-theme-primary {
+  background-color: var(--primary);
+  color: #ffffff;
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px -2px rgba(var(--primary-rgb), 0.35);
+}
+
+.btn-theme-primary:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 6px 16px -2px rgba(var(--primary-rgb), 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-theme-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px -1px rgba(var(--primary-rgb), 0.3);
+}
+
+/* Theme Badge */
+.badge-theme-primary {
+  background-color: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid var(--primary-light-border);
+  font-weight: 700;
+}
+
+.dark .badge-theme-primary {
+  background-color: var(--primary-dark-bg);
+  color: var(--primary-dark-text);
+  border-color: rgba(var(--primary-rgb), 0.4);
+}
+
+/* Active Tab Highlight */
+.tab-theme-active {
+  background-color: var(--primary-light) !important;
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  font-weight: 800 !important;
+}
+
+.dark .tab-theme-active {
+  background-color: var(--primary-dark-bg) !important;
+  color: var(--primary-dark-text) !important;
+  border-color: var(--primary-dark-text) !important;
+}
+
+/* Ensure mobile form inputs don't trigger iOS Safari auto-zoom (<16px) */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="date"],
+  input[type="time"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Playful Keyframes & Animations */
+@keyframes floatNote {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(4deg);
+  }
+}
+
+@keyframes gentleBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes sparkleGlow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+.animate-float-note {
+  animation: floatNote 3s ease-in-out infinite;
+}
+
+.animate-gentle-bounce {
+  animation: gentleBounce 2s ease-in-out infinite;
+}
+
+.animate-sparkle {
+  animation: sparkleGlow 2.5s ease-in-out infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Hide scrollbar for Chrome, Safari, Opera, Edge, Firefox */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Touch action and responsive helpers */
+.touch-pan-x {
+  -webkit-overflow-scrolling: touch;
+}
+
+@supports (padding: max(0px)) {
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+}
+
+/* ==========================================================================
+   ADMINISTRATIVE & CLASSROOM PRINT STYLES (@media print)
+   - Khổ giấy chuẩn: A4 Landscape & Portrait
+   - Tối ưu căn lề hẹp (8mm) tự động ép vừa khít ĐÚNG 1 TRANG cho bảng Thời khóa biểu niêm yết phòng học
+   - Bảng nét đơn đen/xám đậm chuẩn in ấn, độ tương phản cao, dễ nhìn từ xa
+   - Ẩn hoàn toàn Sidebar, Header, nút bấm, modal chrome, thanh cuộn
+   ========================================================================== */
+
+@page {
+  size: A4 portrait;
+  margin: 15mm 12mm 15mm 20mm; /* Top: 15mm, Right: 12mm, Bottom: 15mm, Left: 20mm */
+}
+
+@page landscape-mode {
+  size: A4 landscape;
+  margin: 15mm 12mm 15mm 15mm;
+}
+
+@page schedule-landscape {
+  size: A4 landscape;
+  margin: 6mm 8mm 6mm 8mm; /* Tight margins for maximum 1-page fit on classroom display */
+}
+
+@page schedule-portrait {
+  size: A4 portrait;
+  margin: 6mm 8mm 6mm 8mm;
+}
+
+.print-portrait {
+  page: A4 portrait;
+}
+
+.print-landscape {
+  page: landscape-mode;
+}
+
+.print-schedule-landscape {
+  page: schedule-landscape;
+}
+
+.print-schedule-portrait {
+  page: schedule-portrait;
+}
+
+/* Screen styles for Classroom Schedule Sheet Preview */
+.classroom-schedule-sheet {
+  background: #ffffff;
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+@media print {
+  /* 1. Ẩn hoàn toàn toàn bộ thành phần giao diện không liên quan */
+  .no-print,
+  nav,
+  aside,
+  header:not(.print-header),
+  footer:not(.print-footer),
+  .sidebar,
+  .bottom-nav,
+  .modal-backdrop,
+  .modal-close-btn,
+  .filter-bar,
+  .toast-container,
+  .floating-action-button,
+  button:not(.allow-print),
+  input[type="checkbox"]:not(.allow-print),
+  .search-input-box,
+  .pagination-controls,
+  .tab-navigation-bar,
+  .no-print-area {
+    display: none !important;
+  }
+
+  /* 2. Thiết lập nền trắng, chữ đen, typography chuẩn */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', 'Times New Roman', serif, system-ui !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #root {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  /* 3. Bảng biểu chuẩn hành chính: viền nét đơn đen 1px, không vỡ trang */
+  table, .print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+    font-size: 10.5pt !important;
+    margin: 8px 0 !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th, td, .print-th, .print-td {
+    border: 1px solid #334155 !important;
+    padding: 5px 6px !important;
+    color: #0f172a !important;
+    background: transparent !important;
+  }
+
+  th, .print-th {
+    background-color: #f1f5f9 !important;
+    font-weight: 800 !important;
+    text-align: center !important;
+    text-transform: uppercase !important;
+    font-size: 10pt !important;
+  }
+
+  /* 4. Định dạng căn lề bảng số liệu */
+  .text-left, td.cell-name, td.cell-content {
+    text-align: left !important;
+  }
+
+  .text-center, td.cell-date, td.cell-code, td.cell-status, td.cell-stt {
+    text-align: center !important;
+  }
+
+  .text-right, td.cell-amount, td.cell-number, td.cell-tax {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  /* 5. Khối chữ ký & Tổng kết tránh bị cắt ngang trang */
+  .signature-section,
+  .print-avoid-break,
+  .print-summary-box,
+  .print-footer-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* 6. Hiển thị trang in toàn màn hình nếu nằm trong printable container */
+  .printable-area {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* ==========================================================================
+     DEDICATED 1-PAGE CLASSROOM SCHEDULE PRINT LAYOUT
+     - Tự động co giãn vừa vặn hoàn hảo trong 1 trang giấy A4 Landscape / Portrait
+     - Trình bày trực quan, hiện đại, bắt mắt cho việc dán cửa phòng học / bảng tin
+     ========================================================================== */
+
+  .classroom-schedule-sheet,
+  .class-schedule-page,
+  .print-class-schedule,
+  .schedule-single-page,
+  .classroom-door-schedule {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 98vh !important;
+    max-height: 98vh !important;
+    margin: 0 auto !important;
+    padding: 6px 8px !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+    overflow: hidden !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  }
+
+  /* Header banner for classroom display */
+  .schedule-print-header {
+    flex-shrink: 0 !important;
+    border-bottom: 2px solid #0f172a !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .schedule-print-title {
+    font-size: 14pt !important;
+    font-weight: 900 !important;
+    color: #0f172a !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1.15 !important;
+    text-transform: uppercase !important;
+    margin: 0 !important;
+  }
+
+  .schedule-print-subtitle {
+    font-size: 8.5pt !important;
+    color: #475569 !important;
+    margin-top: 1px !important;
+    line-height: 1.2 !important;
+  }
+
+  .schedule-print-room-badge {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    font-size: 11pt !important;
+    font-weight: 800 !important;
+    padding: 4px 10px !important;
+    border-radius: 6px !important;
+    text-transform: uppercase !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    letter-spacing: 0.02em !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Main timetable schedule grid - Auto fits available page height */
+  .schedule-print-body {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: stretch !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .schedule-print-table {
+    width: 100% !important;
+    height: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    margin: 0 !important;
+  }
+
+  .schedule-print-table th {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    border: 1px solid #0f172a !important;
+    font-size: 8.5pt !important;
+    font-weight: 800 !important;
+    padding: 4px 2px !important;
+    text-align: center !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .schedule-print-table th.time-col-header {
+    width: 75px !important;
+    background-color: #334155 !important;
+  }
+
+  .schedule-print-table td {
+    border: 1px solid #94a3b8 !important;
+    padding: 3px !important;
+    vertical-align: top !important;
+    background-color: #ffffff !important;
+  }
+
+  .schedule-print-table td.time-slot-label {
+    background-color: #f8fafc !important;
+    font-weight: 800 !important;
+    font-size: 8pt !important;
+    text-align: center !important;
+    color: #1e293b !important;
+    border-right: 1.5px solid #475569 !important;
+    padding: 4px 2px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Individual class cards inside cells */
+  .schedule-class-block {
+    background-color: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-left: 3.5px solid #0284c7 !important;
+    border-radius: 4px !important;
+    padding: 2.5px 4px !important;
+    margin-bottom: 2px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .schedule-class-block.piano-accent {
+    border-left-color: #d97706 !important;
+    background-color: #fffbeb !important;
+  }
+
+  .schedule-class-block.vocal-accent {
+    border-left-color: #e11d48 !important;
+    background-color: #fff1f2 !important;
+  }
+
+  .schedule-class-block.guitar-accent {
+    border-left-color: #2563eb !important;
+    background-color: #eff6ff !important;
+  }
+
+  .schedule-class-block.drum-accent {
+    border-left-color: #16a34a !important;
+    background-color: #f0fdf4 !important;
+  }
+
+  .schedule-class-block.violin-accent {
+    border-left-color: #9333ea !important;
+    background-color: #faf5ff !important;
+  }
+
+  .schedule-class-name {
+    font-size: 8.5pt !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+  }
+
+  .schedule-class-meta {
+    font-size: 7.5pt !important;
+    color: #334155 !important;
+    line-height: 1.15 !important;
+    margin-top: 1px !important;
+  }
+
+  .schedule-class-time {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    font-weight: 700 !important;
+    font-size: 7.5pt !important;
+    color: #0f172a !important;
+  }
+
+  .schedule-class-teacher {
+    font-weight: 700 !important;
+    color: #0369a1 !important;
+  }
+
+  .schedule-class-capacity {
+    font-size: 7pt !important;
+    color: #64748b !important;
+  }
+
+  .schedule-empty-cell {
+    height: 100% !important;
+    min-height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #cbd5e1 !important;
+    font-size: 7pt !important;
+    font-style: italic !important;
+  }
+
+  /* Master Room Matrix Table View (Landscape) */
+  .schedule-room-row {
+    height: 14% !important;
+  }
+
+  .schedule-room-name-cell {
+    background-color: #f8fafc !important;
+    font-weight: 800 !important;
+    font-size: 8.5pt !important;
+    color: #0f172a !important;
+    width: 140px !important;
+    border-right: 1.5px solid #0f172a !important;
+    padding: 4px 6px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Classroom rules & Footer info (Guaranteed single-page footer) */
+  .schedule-print-footer {
+    flex-shrink: 0 !important;
+    border-top: 1.5px solid #0f172a !important;
+    padding-top: 4px !important;
+    margin-top: 5px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 8px !important;
+    font-size: 7pt !important;
+    line-height: 1.25 !important;
+  }
+
+  .schedule-footer-box {
+    background-color: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 4px !important;
+    padding: 3px 5px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .schedule-footer-title {
+    font-weight: 800 !important;
+    font-size: 7.5pt !important;
+    color: #0f172a !important;
+    text-transform: uppercase !important;
+    margin-bottom: 2px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+  }
+
+  .schedule-footer-list {
+    margin: 0 !important;
+    padding-left: 12px !important;
+    color: #334155 !important;
+  }
+
+  .schedule-footer-list li {
+    margin-bottom: 1px !important;
+  }
+
+  .schedule-footer-bottom {
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    font-size: 6.5pt !important;
+    color: #64748b !important;
+    padding-top: 2px !important;
+    margin-top: 2px !important;
+    border-top: 1px dashed #cbd5e1 !important;
+  }
+}

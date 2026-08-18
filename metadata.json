@@ -1,0 +1,8 @@
+{
+  "name": "Minh Music Center",
+  "description": "Hệ thống quản lý trung tâm âm nhạc toàn diện với tính năng khôi phục cài đặt gốc, điểm danh, học phí VietQR và xếp hạng học viên",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
