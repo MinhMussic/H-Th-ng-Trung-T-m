@@ -1,11 +1,15 @@
 import React, { Component, StrictMode, type ErrorInfo, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { injectSpeedInsights } from '@vercel/speed-insights';
 import App from './App.tsx';
 import './index.css';
 import { testFirestoreConnection } from './firebase/config';
 
 // Test Firebase Firestore connection on boot
 testFirestoreConnection();
+
+// Initialize Vercel Speed Insights
+injectSpeedInsights();
 
 // Global error handler to catch uncaught script and promise errors
 if (typeof window !== 'undefined') {
