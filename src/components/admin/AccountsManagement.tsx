@@ -46,7 +46,7 @@ export const AccountsManagement: React.FC = () => {
     resetPassword 
   } = useAuth();
   
-  const { students, teachers, guardians } = useData();
+  const { students, teachers, guardians, addStudent, addTeacher, addGuardian } = useData();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
@@ -214,24 +214,102 @@ export const AccountsManagement: React.FC = () => {
       return;
     }
 
+    const emailToUse = accountEmail.trim().toLowerCase();
+    const usernameToUse = emailToUse.includes('@') ? emailToUse.split('@')[0] : emailToUse;
+    const finalPassword = tempPassword.trim() || (selectedRole === 'ADMIN' ? 'admin123' : selectedRole === 'TEACHER' ? 'teacher123' : selectedRole === 'STUDENT' ? 'student123' : 'parent123');
+    const finalDisplayName = displayName.trim() || selectedProfile?.name || usernameToUse;
+    const finalPhone = accountPhone.trim() || selectedProfile?.phone || '';
+
+    let linkedProfileId = selectedProfile?.id;
+    let linkedProfileCode = selectedProfile?.code;
+    let linkedProfileName = selectedProfile?.name || finalDisplayName;
+
+    // If role is STUDENT and no profile was selected, check existing or auto-create student profile
+    if (selectedRole === 'STUDENT') {
+      if (!linkedProfileId) {
+        const existingStudent = students.find(s => 
+          (s.email && s.email.toLowerCase() === emailToUse) ||
+          (finalPhone && s.phone && s.phone.replace(/\D+/g, '') === finalPhone.replace(/\D+/g, '')) ||
+          s.fullName.toLowerCase() === finalDisplayName.toLowerCase()
+        );
+        if (existingStudent) {
+          linkedProfileId = existingStudent.id;
+          linkedProfileCode = existingStudent.code;
+          linkedProfileName = existingStudent.fullName;
+        } else {
+          const newStudentId = `stu-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+          const newCode = `HV${String(students.length + 1).padStart(3, '0')}`;
+          addStudent({
+            id: newStudentId,
+            code: newCode,
+            fullName: finalDisplayName,
+            email: emailToUse,
+            phone: finalPhone,
+            gender: 'Khác',
+            birthDate: '2015-01-01',
+            status: 'active',
+            enrolledSubjects: ['Piano'],
+            totalLessons: 24,
+            completedLessons: 0,
+            remainingLessons: 24,
+            stars: 20,
+            totalStars: 20,
+            rewardPoints: 20
+          });
+          linkedProfileId = newStudentId;
+          linkedProfileCode = newCode;
+          linkedProfileName = finalDisplayName;
+        }
+      }
+    } else if (selectedRole === 'PARENT' || selectedRole === 'GUARDIAN') {
+      if (!linkedProfileId) {
+        const existingGuardian = guardians.find(g => 
+          (g.email && g.email.toLowerCase() === emailToUse) ||
+          (finalPhone && g.phone && g.phone.replace(/\D+/g, '') === finalPhone.replace(/\D+/g, ''))
+        );
+        if (existingGuardian) {
+          linkedProfileId = existingGuardian.id;
+          linkedProfileCode = existingGuardian.code;
+          linkedProfileName = existingGuardian.fullName;
+        }
+      }
+    } else if (selectedRole === 'TEACHER') {
+      if (!linkedProfileId) {
+        const existingTeacher = teachers.find(t => 
+          (t.email && t.email.toLowerCase() === emailToUse) ||
+          (finalPhone && t.phone && t.phone.replace(/\D+/g, '') === finalPhone.replace(/\D+/g, ''))
+        );
+        if (existingTeacher) {
+          linkedProfileId = existingTeacher.id;
+          linkedProfileCode = existingTeacher.code;
+          linkedProfileName = existingTeacher.fullName;
+        }
+      }
+    }
+
     const newUid = `usr-gen-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     await addAccount({
       uid: newUid,
-      email: accountEmail.trim().toLowerCase(),
-      displayName: displayName || selectedProfile?.name || accountEmail.split('@')[0],
-      phone: accountPhone || selectedProfile?.phone,
+      email: emailToUse,
+      username: usernameToUse,
+      password: finalPassword,
+      displayName: finalDisplayName,
+      phone: finalPhone,
       role: selectedRole,
       roles: [selectedRole],
       primaryRole: selectedRole,
       status: 'active',
-      profileId: selectedProfile?.id,
-      profileName: selectedProfile?.name,
-      profileCode: selectedProfile?.code,
+      profileId: linkedProfileId,
+      studentProfileId: selectedRole === 'STUDENT' ? linkedProfileId : undefined,
+      guardianProfileId: (selectedRole === 'PARENT' || selectedRole === 'GUARDIAN') ? linkedProfileId : undefined,
+      teacherProfileId: selectedRole === 'TEACHER' ? linkedProfileId : undefined,
+      profileName: linkedProfileName,
+      profileCode: linkedProfileCode,
       note: accountNote || `Được tạo bởi Admin ngày ${new Date().toLocaleDateString('vi-VN')}`
     });
 
     setIsCreateModalOpen(false);
-    showToast(`Đã tạo tài khoản ${selectedRole} thành công cho ${selectedProfile?.name || accountEmail}!`);
+    showToast(`Đã tạo tài khoản ${selectedRole} thành công cho ${finalDisplayName}! Mật khẩu: ${finalPassword}`);
   };
 
   const handleConfirmLinkPending = () => {
@@ -244,7 +322,7 @@ export const AccountsManagement: React.FC = () => {
     );
     setLinkingAccount(null);
     setLinkTargetProfile(null);
-    showToast(`Đã duyệt và liên kết tài khoản ${linkingAccount.email} với hồ sơ ${linkTargetProfile.fullName}!`);
+    showToast(`Đã duyệt và liên kết tài khoản ${linkingAccount.email} với hồ sơ ${linkTargetProfile.fullName || linkTargetProfile.name}!`);
   };
 
   return (
@@ -1063,9 +1141,54 @@ export const AccountsManagement: React.FC = () => {
                 </button>
                 <button
                   onClick={() => {
-                    updateAccountStatus(viewingDetailAccount.uid, 'active');
+                    const acc = viewingDetailAccount;
+                    let studentId = acc.studentProfileId || acc.profileId;
+                    let studentCode = acc.profileCode;
+                    let studentName = acc.profileName || acc.displayName;
+
+                    if (acc.role === 'STUDENT' && !studentId) {
+                      const existing = students.find(s => 
+                        (s.email && s.email.toLowerCase() === acc.email.toLowerCase()) ||
+                        (acc.phone && s.phone && s.phone.replace(/\D+/g, '') === acc.phone.replace(/\D+/g, ''))
+                      );
+                      if (existing) {
+                        studentId = existing.id;
+                        studentCode = existing.code;
+                        studentName = existing.fullName;
+                      } else {
+                        const newStudentId = `stu-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+                        const newCode = `HV${String(students.length + 1).padStart(3, '0')}`;
+                        addStudent({
+                          id: newStudentId,
+                          code: newCode,
+                          fullName: acc.displayName,
+                          email: acc.email,
+                          phone: acc.phone,
+                          birthDate: acc.birthDate || '2015-01-01',
+                          gender: acc.gender || 'Khác',
+                          guardianName: acc.guardianName,
+                          guardianPhone: acc.guardianPhone,
+                          address: acc.address,
+                          enrolledSubjects: ['Piano'],
+                          status: 'active',
+                          totalLessons: 24,
+                          completedLessons: 0,
+                          remainingLessons: 24,
+                          stars: 20,
+                          totalStars: 20,
+                          rewardPoints: 20
+                        });
+                        studentId = newStudentId;
+                        studentCode = newCode;
+                        studentName = acc.displayName;
+                      }
+                      linkAccountToProfile(acc.uid, studentId, studentName, studentCode || '');
+                    } else {
+                      updateAccountStatus(acc.uid, 'active');
+                    }
+
                     setViewingDetailAccount(null);
-                    showToast(`Đã DUYỆT THÀNH CÔNG và kích hoạt tài khoản cho ${viewingDetailAccount.displayName}!`);
+                    showToast(`Đã DUYỆT THÀNH CÔNG và kích hoạt tài khoản cho ${acc.displayName}! Mã: ${studentCode || acc.username || acc.email}`);
                   }}
                   className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
                 >

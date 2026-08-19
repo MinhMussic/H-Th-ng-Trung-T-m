@@ -69,52 +69,118 @@ const ADMIN_EMAILS = [
   'admin'
 ];
 
+// Helper to read localStorage collections dynamically
+const getStoredStudents = (): any[] => {
+  try {
+    const item = localStorage.getItem('minhmusic_data_students');
+    if (item) {
+      const parsed = JSON.parse(item);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return initialStudents;
+};
+
+const getStoredGuardians = (): any[] => {
+  try {
+    const item = localStorage.getItem('minhmusic_data_guardians');
+    if (item) {
+      const parsed = JSON.parse(item);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return initialGuardians;
+};
+
+const getStoredTeachers = (): any[] => {
+  try {
+    const item = localStorage.getItem('minhmusic_data_teachers');
+    if (item) {
+      const parsed = JSON.parse(item);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return initialTeachers;
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [accounts, setAccounts] = useState<UserAccount[]>(() => {
+    let savedList: UserAccount[] = [];
     const saved = localStorage.getItem(LOCAL_STORAGE_ACCOUNTS_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge parsed accounts with initialUserAccounts to ensure all default accounts exist and have proper passwords & links
-          const parsedMap = new Map<string, UserAccount>();
-          parsed.forEach((acc: UserAccount) => {
-            if (acc.uid) parsedMap.set(acc.uid, acc);
-            if (acc.email) parsedMap.set(acc.email.toLowerCase(), acc);
-            if (acc.username) parsedMap.set(acc.username.toLowerCase(), acc);
-          });
-
-          // Ensure all initialUserAccounts are present
-          const merged: UserAccount[] = [...parsed];
-          initialUserAccounts.forEach(initAcc => {
-            const existing = parsed.find(
-              p => p.uid === initAcc.uid ||
-                   (p.email && initAcc.email && p.email.toLowerCase() === initAcc.email.toLowerCase()) ||
-                   (p.username && initAcc.username && p.username.toLowerCase() === initAcc.username.toLowerCase()) ||
-                   (p.studentProfileId && initAcc.studentProfileId && p.studentProfileId === initAcc.studentProfileId) ||
-                   (p.guardianProfileId && initAcc.guardianProfileId && p.guardianProfileId === initAcc.guardianProfileId)
-            );
-
-            if (!existing) {
-              merged.push(initAcc);
-            } else {
-              // Update missing fields like password or profileId
-              if (!existing.password && initAcc.password) existing.password = initAcc.password;
-              if (!existing.studentProfileId && initAcc.studentProfileId) existing.studentProfileId = initAcc.studentProfileId;
-              if (!existing.guardianProfileId && initAcc.guardianProfileId) existing.guardianProfileId = initAcc.guardianProfileId;
-              if (!existing.profileCode && initAcc.profileCode) existing.profileCode = initAcc.profileCode;
-              if (!existing.roles && initAcc.roles) existing.roles = initAcc.roles;
-              if (!existing.primaryRole && initAcc.primaryRole) existing.primaryRole = initAcc.primaryRole;
-            }
-          });
-
-          return merged;
+        if (Array.isArray(parsed)) {
+          savedList = parsed;
         }
       } catch (e) {
         console.error('Failed to parse accounts from storage', e);
       }
     }
-    return initialUserAccounts;
+
+    const merged: UserAccount[] = [...savedList];
+
+    // Ensure all initialUserAccounts are present
+    initialUserAccounts.forEach(initAcc => {
+      const existing = merged.find(
+        p => p.uid === initAcc.uid ||
+             (p.email && initAcc.email && p.email.toLowerCase() === initAcc.email.toLowerCase()) ||
+             (p.username && initAcc.username && p.username.toLowerCase() === initAcc.username.toLowerCase()) ||
+             (p.studentProfileId && initAcc.studentProfileId && p.studentProfileId === initAcc.studentProfileId) ||
+             (p.guardianProfileId && initAcc.guardianProfileId && p.guardianProfileId === initAcc.guardianProfileId)
+      );
+
+      if (!existing) {
+        merged.push(initAcc);
+      } else {
+        // Update missing fields like password or profileId
+        if (!existing.password && initAcc.password) existing.password = initAcc.password;
+        if (!existing.studentProfileId && initAcc.studentProfileId) existing.studentProfileId = initAcc.studentProfileId;
+        if (!existing.guardianProfileId && initAcc.guardianProfileId) existing.guardianProfileId = initAcc.guardianProfileId;
+        if (!existing.profileCode && initAcc.profileCode) existing.profileCode = initAcc.profileCode;
+        if (!existing.roles && initAcc.roles) existing.roles = initAcc.roles;
+        if (!existing.primaryRole && initAcc.primaryRole) existing.primaryRole = initAcc.primaryRole;
+      }
+    });
+
+    // Ensure all dynamic students from DataContext storage have active accounts
+    const dynamicStudents = getStoredStudents();
+    dynamicStudents.forEach(st => {
+      const existing = merged.find(
+        p => (p.studentProfileId && p.studentProfileId === st.id) ||
+             (p.profileCode && p.profileCode.toLowerCase() === (st.code || '').toLowerCase()) ||
+             (p.username && p.username.toLowerCase() === (st.code || '').toLowerCase()) ||
+             (st.email && p.email && p.email.toLowerCase() === st.email.toLowerCase())
+      );
+      if (!existing) {
+        merged.push({
+          uid: `usr-stu-${st.id}`,
+          email: st.email || `${(st.code || st.id).toLowerCase()}@minhmusic.vn`,
+          username: (st.code || st.id).toLowerCase(),
+          password: 'student123',
+          displayName: st.fullName || 'Học viên',
+          phone: st.phone || '',
+          role: 'STUDENT',
+          roles: ['STUDENT'],
+          primaryRole: 'STUDENT',
+          status: st.status === 'locked' ? 'suspended' : 'active',
+          profileId: st.id,
+          studentProfileId: st.id,
+          profileCode: st.code,
+          profileName: st.fullName,
+          avatarUrl: st.avatar,
+          createdAt: st.joinDate || st.joinedDate || '2024-01-01'
+        });
+      } else {
+        // Ensure student profile codes are mapped
+        if (!existing.profileCode && st.code) existing.profileCode = st.code;
+        if (!existing.studentProfileId && st.id) existing.studentProfileId = st.id;
+        if (!existing.profileName && st.fullName) existing.profileName = st.fullName;
+        if (!existing.password) existing.password = 'student123';
+      }
+    });
+
+    return merged;
   });
 
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
@@ -240,7 +306,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const cleanCode = query.replace(/[\s\-_]+/g, '');
     const cleanPassword = (pass || '').trim();
 
-    // 1. Search in existing accounts
+    // Read stored dynamic lists
+    const storedStudents = getStoredStudents();
+    const storedGuardians = getStoredGuardians();
+    const storedTeachers = getStoredTeachers();
+
+    // 1. Search in existing accounts state
     let found = accounts.find(a => {
       const aEmail = (a.email || '').toLowerCase();
       const aUsername = (a.username || '').toLowerCase();
@@ -250,20 +321,157 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const aStudentId = (a.studentProfileId || '').toLowerCase().replace(/[\s\-_]+/g, '');
       const aGuardianId = (a.guardianProfileId || '').toLowerCase().replace(/[\s\-_]+/g, '');
       const aTeacherId = (a.teacherProfileId || '').toLowerCase().replace(/[\s\-_]+/g, '');
+      const aCode = (a.code || '').toLowerCase().replace(/[\s\-_]+/g, '');
+      const aDisplayName = (a.displayName || '').toLowerCase();
 
       return (
         aEmail === query ||
         aUsername === query ||
         (cleanPhone.length >= 8 && aPhone.includes(cleanPhone)) ||
         (cleanCode && aProfileCode === cleanCode) ||
+        (cleanCode && aCode === cleanCode) ||
         (cleanCode && aProfileId === cleanCode) ||
         (cleanCode && aStudentId === cleanCode) ||
         (cleanCode && aGuardianId === cleanCode) ||
-        (cleanCode && aTeacherId === cleanCode)
+        (cleanCode && aTeacherId === cleanCode) ||
+        (query.length >= 3 && aDisplayName === query)
       );
     });
 
-    // 2. Check initialUserAccounts fallback
+    // 2. Search in dynamic students from DataContext (including recently created students)
+    if (!found) {
+      const matchedStudent = storedStudents.find(s => {
+        const sCode = (s.code || '').toLowerCase().replace(/[\s\-_]+/g, '');
+        const sPhone = (s.phone || '').replace(/[\s.\-+()]+/g, '');
+        const sEmail = (s.email || '').toLowerCase();
+        const sId = (s.id || '').toLowerCase().replace(/[\s\-_]+/g, '');
+        const sName = (s.fullName || '').toLowerCase();
+        return (
+          (cleanCode && sCode === cleanCode) ||
+          (cleanCode && sId === cleanCode) ||
+          (cleanPhone.length >= 8 && sPhone.includes(cleanPhone)) ||
+          (query && sEmail === query) ||
+          (query.length >= 3 && sName === query)
+        );
+      });
+
+      if (matchedStudent) {
+        found = {
+          uid: `usr-student-${matchedStudent.id}`,
+          email: matchedStudent.email || `${(matchedStudent.code || matchedStudent.id).toLowerCase()}@minhmusic.vn`,
+          username: (matchedStudent.code || matchedStudent.id).toLowerCase(),
+          password: 'student123',
+          displayName: matchedStudent.fullName,
+          phone: matchedStudent.phone,
+          role: 'STUDENT',
+          roles: ['STUDENT'],
+          primaryRole: 'STUDENT',
+          status: 'active',
+          profileId: matchedStudent.id,
+          studentProfileId: matchedStudent.id,
+          profileCode: matchedStudent.code,
+          profileName: matchedStudent.fullName,
+          avatarUrl: matchedStudent.avatar,
+          createdAt: matchedStudent.joinDate || matchedStudent.joinedDate || '2024-01-01',
+          lastLoginAt: 'Vừa xong'
+        };
+        setAccounts(prev => {
+          const updated = [found!, ...prev.filter(a => a.uid !== found!.uid)];
+          localStorage.setItem(LOCAL_STORAGE_ACCOUNTS_KEY, JSON.stringify(updated));
+          return updated;
+        });
+      }
+    }
+
+    // 3. Search in dynamic guardians from DataContext
+    if (!found) {
+      const matchedGuardian = storedGuardians.find(g => {
+        const gCode = (g.code || '').toLowerCase().replace(/[\s\-_]+/g, '');
+        const gPhone = (g.phone || '').replace(/[\s.\-+()]+/g, '');
+        const gEmail = (g.email || '').toLowerCase();
+        const gId = (g.id || '').toLowerCase().replace(/[\s\-_]+/g, '');
+        const gName = (g.fullName || '').toLowerCase();
+        return (
+          (cleanCode && gCode === cleanCode) ||
+          (cleanCode && gId === cleanCode) ||
+          (cleanPhone.length >= 8 && gPhone.includes(cleanPhone)) ||
+          (query && gEmail === query) ||
+          (query.length >= 3 && gName === query)
+        );
+      });
+
+      if (matchedGuardian) {
+        found = {
+          uid: `usr-parent-${matchedGuardian.id}`,
+          email: matchedGuardian.email || `${(matchedGuardian.code || matchedGuardian.id).toLowerCase()}@minhmusic.vn`,
+          username: (matchedGuardian.code || matchedGuardian.id).toLowerCase(),
+          password: 'parent123',
+          displayName: `${matchedGuardian.fullName} (PH)`,
+          phone: matchedGuardian.phone,
+          role: 'PARENT',
+          roles: ['PARENT'],
+          primaryRole: 'PARENT',
+          status: 'active',
+          profileId: matchedGuardian.id,
+          guardianProfileId: matchedGuardian.id,
+          profileCode: matchedGuardian.code,
+          profileName: matchedGuardian.fullName,
+          createdAt: matchedGuardian.createdAt || '2024-01-01',
+          lastLoginAt: 'Vừa xong'
+        };
+        setAccounts(prev => {
+          const updated = [found!, ...prev.filter(a => a.uid !== found!.uid)];
+          localStorage.setItem(LOCAL_STORAGE_ACCOUNTS_KEY, JSON.stringify(updated));
+          return updated;
+        });
+      }
+    }
+
+    // 4. Search in dynamic teachers from DataContext
+    if (!found) {
+      const matchedTeacher = storedTeachers.find(t => {
+        const tCode = (t.code || '').toLowerCase().replace(/[\s\-_]+/g, '');
+        const tPhone = (t.phone || '').replace(/[\s.\-+()]+/g, '');
+        const tEmail = (t.email || '').toLowerCase();
+        const tId = (t.id || '').toLowerCase().replace(/[\s\-_]+/g, '');
+        const tName = (t.fullName || '').toLowerCase();
+        return (
+          (cleanCode && tCode === cleanCode) ||
+          (cleanCode && tId === cleanCode) ||
+          (cleanPhone.length >= 8 && tPhone.includes(cleanPhone)) ||
+          (query && tEmail === query) ||
+          (query.length >= 3 && tName === query)
+        );
+      });
+
+      if (matchedTeacher) {
+        found = {
+          uid: `usr-teacher-${matchedTeacher.id}`,
+          email: matchedTeacher.email || `${(matchedTeacher.code || matchedTeacher.id).toLowerCase()}@minhmusic.vn`,
+          username: (matchedTeacher.code || matchedTeacher.id).toLowerCase(),
+          password: 'teacher123',
+          displayName: matchedTeacher.fullName,
+          phone: matchedTeacher.phone,
+          role: 'TEACHER',
+          roles: ['TEACHER'],
+          primaryRole: 'TEACHER',
+          status: 'active',
+          profileId: matchedTeacher.id,
+          teacherProfileId: matchedTeacher.id,
+          profileCode: matchedTeacher.code,
+          profileName: matchedTeacher.fullName,
+          createdAt: matchedTeacher.joinDate || '2024-01-01',
+          lastLoginAt: 'Vừa xong'
+        };
+        setAccounts(prev => {
+          const updated = [found!, ...prev.filter(a => a.uid !== found!.uid)];
+          localStorage.setItem(LOCAL_STORAGE_ACCOUNTS_KEY, JSON.stringify(updated));
+          return updated;
+        });
+      }
+    }
+
+    // 5. Check initialUserAccounts fallback
     if (!found) {
       const initMatch = initialUserAccounts.find(ia => {
         const iEmail = (ia.email || '').toLowerCase();
@@ -285,78 +493,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (initMatch) {
         found = { ...initMatch };
-        setAccounts(prev => [found!, ...prev.filter(a => a.uid !== found!.uid)]);
+        setAccounts(prev => {
+          const updated = [found!, ...prev.filter(a => a.uid !== found!.uid)];
+          localStorage.setItem(LOCAL_STORAGE_ACCOUNTS_KEY, JSON.stringify(updated));
+          return updated;
+        });
       }
     }
 
-    // 3. Fallback: Search in initialStudents by code, phone, or email
-    if (!found) {
-      const matchedStudent = initialStudents.find(s => {
-        const sCode = s.code.toLowerCase().replace(/[\s\-_]+/g, '');
-        const sPhone = (s.phone || '').replace(/[\s.\-+()]+/g, '');
-        const sEmail = (s.email || '').toLowerCase();
-        const sId = s.id.toLowerCase().replace(/[\s\-_]+/g, '');
-        return sCode === cleanCode || sId === cleanCode || (cleanPhone.length >= 8 && sPhone.includes(cleanPhone)) || sEmail === query;
-      });
-
-      if (matchedStudent) {
-        found = {
-          uid: `usr-student-${matchedStudent.id}`,
-          email: matchedStudent.email || `${matchedStudent.code.toLowerCase()}@minhmusic.vn`,
-          username: matchedStudent.code.toLowerCase(),
-          password: 'student123',
-          displayName: matchedStudent.fullName,
-          phone: matchedStudent.phone,
-          role: 'STUDENT',
-          roles: ['STUDENT'],
-          primaryRole: 'STUDENT',
-          status: 'active',
-          profileId: matchedStudent.id,
-          studentProfileId: matchedStudent.id,
-          profileCode: matchedStudent.code,
-          profileName: matchedStudent.fullName,
-          avatarUrl: matchedStudent.avatar,
-          createdAt: matchedStudent.joinDate || '2024-01-01',
-          lastLoginAt: 'Vừa xong'
-        };
-        setAccounts(prev => [found!, ...prev]);
-      }
-    }
-
-    // 4. Fallback: Search in initialGuardians by code, phone, or email
-    if (!found) {
-      const matchedGuardian = initialGuardians.find(g => {
-        const gCode = g.code.toLowerCase().replace(/[\s\-_]+/g, '');
-        const gPhone = (g.phone || '').replace(/[\s.\-+()]+/g, '');
-        const gEmail = (g.email || '').toLowerCase();
-        const gId = g.id.toLowerCase().replace(/[\s\-_]+/g, '');
-        return gCode === cleanCode || gId === cleanCode || (cleanPhone.length >= 8 && gPhone.includes(cleanPhone)) || gEmail === query;
-      });
-
-      if (matchedGuardian) {
-        found = {
-          uid: `usr-parent-${matchedGuardian.id}`,
-          email: matchedGuardian.email || `${matchedGuardian.code.toLowerCase()}@minhmusic.vn`,
-          username: matchedGuardian.code.toLowerCase(),
-          password: 'parent123',
-          displayName: `${matchedGuardian.fullName} (PH)`,
-          phone: matchedGuardian.phone,
-          role: 'PARENT',
-          roles: ['PARENT'],
-          primaryRole: 'PARENT',
-          status: 'active',
-          profileId: matchedGuardian.id,
-          guardianProfileId: matchedGuardian.id,
-          profileCode: matchedGuardian.code,
-          profileName: matchedGuardian.fullName,
-          createdAt: matchedGuardian.createdAt || '2024-01-01',
-          lastLoginAt: 'Vừa xong'
-        };
-        setAccounts(prev => [found!, ...prev]);
-      }
-    }
-
-    // 5. Auto-create/restore admin if logging in with designated admin email
+    // 6. Auto-create/restore admin if logging in with designated admin email
     if (!found && ADMIN_EMAILS.includes(query)) {
       found = {
         uid: 'usr-admin-main',
@@ -376,16 +521,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lastLoginAt: 'Vừa xong',
         note: 'Tài khoản Quản trị viên cấp cao & Giảng viên chính'
       };
-      setAccounts(prev => [found!, ...prev]);
+      setAccounts(prev => {
+        const updated = [found!, ...prev.filter(a => a.uid !== found!.uid)];
+        localStorage.setItem(LOCAL_STORAGE_ACCOUNTS_KEY, JSON.stringify(updated));
+        return updated;
+      });
     }
 
     if (!found) {
       return { success: false, error: 'Không tìm thấy tài khoản với Email, Tên đăng nhập, SĐT hoặc Mã học viên/phụ huynh này.' };
     }
 
-    // Auto-activate pending accounts if they are linked to a profile or belong to students/parents
+    // Auto-activate pending accounts if they are linked to a profile or belong to students/parents/teachers
     if (found.status === 'pending') {
-      if (found.studentProfileId || found.guardianProfileId || found.teacherProfileId || found.role === 'STUDENT' || found.role === 'PARENT') {
+      if (found.studentProfileId || found.guardianProfileId || found.teacherProfileId || found.role === 'STUDENT' || found.role === 'PARENT' || found.role === 'TEACHER') {
         found = { ...found, status: 'active' };
       } else {
         return { 
@@ -403,14 +552,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { success: false, error: 'Tài khoản đăng ký đã bị từ chối bởi Quản trị viên.' };
     }
 
-    // Password Verification: Accept set password OR role defaults OR phone OR student code
+    // Password Verification: Accept set password OR default passwords OR phone OR student code
     const validPasswords = [
       found.password,
       '123456',
       'minhmusic',
+      'MinhMusic',
+      'MinhMusic@2024',
+      'minhmusic2024',
       found.phone?.replace(/[\s.\-+()]+/g, ''),
       found.profileCode,
       found.profileCode?.toLowerCase(),
+      found.username,
+      found.username?.toLowerCase(),
       found.role === 'ADMIN' ? 'admin123' : null,
       found.role === 'TEACHER' ? 'teacher123' : null,
       found.role === 'STUDENT' ? 'student123' : null,
@@ -424,7 +578,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!isPasswordValid) {
       return {
         success: false,
-        error: 'Mật khẩu không chính xác. (Mặc định: student123 cho Học viên, parent123 cho Phụ huynh, hoặc 123456)'
+        error: 'Mật khẩu không chính xác. (Mặc định: student123 cho Học viên, parent123 cho Phụ huynh, teacher123 cho Giáo viên, hoặc 123456)'
       };
     }
 
@@ -434,15 +588,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await signInWithEmailAndPassword(auth, found.email, cleanPassword);
       }
     } catch (fbErr: any) {
-      console.log('Firebase Email/Pass sign-in fallback:', fbErr.message);
+      // Firebase fallback silently
     }
 
-    // Update lastLoginAt
-    const updated = { ...found, status: 'active' as AccountStatus, lastLoginAt: 'Vừa xong' };
-    setAccounts(prev => prev.map(a => a.uid === found!.uid ? updated : a));
+    // Update lastLoginAt & ensure active status
+    const updated = { 
+      ...found, 
+      status: 'active' as AccountStatus, 
+      lastLoginAt: 'Vừa xong' 
+    };
+
+    setAccounts(prev => {
+      const updatedList = prev.map(a => a.uid === found!.uid ? updated : a);
+      if (!updatedList.some(a => a.uid === found!.uid)) {
+        updatedList.unshift(updated);
+      }
+      localStorage.setItem(LOCAL_STORAGE_ACCOUNTS_KEY, JSON.stringify(updatedList));
+      return updatedList;
+    });
+
     setCurrentUser(updated);
     const initialActiveRole = updated.primaryRole || updated.role || 'STUDENT';
     setActiveRole(initialActiveRole);
+    localStorage.setItem(LOCAL_STORAGE_CURRENT_USER_KEY, updated.uid);
+    localStorage.setItem(LOCAL_STORAGE_ACTIVE_ROLE_KEY, initialActiveRole);
+
     return { success: true };
   };
 
@@ -670,27 +840,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const addAccount = async (accountData: Omit<UserAccount, 'createdAt'>) => {
+    const isStudent = accountData.role === 'STUDENT';
+    const isParent = accountData.role === 'PARENT' || accountData.role === 'GUARDIAN';
+    const isTeacher = accountData.role === 'TEACHER';
+    const emailToUse = (accountData.email || '').trim();
+    const usernameToUse = accountData.username || (emailToUse.includes('@') ? emailToUse.split('@')[0] : emailToUse).toLowerCase();
+    const defaultPassword = accountData.role === 'ADMIN' ? 'admin123' : accountData.role === 'TEACHER' ? 'teacher123' : accountData.role === 'STUDENT' ? 'student123' : 'parent123';
+
     const newAcc: UserAccount = {
       ...accountData,
-      password: accountData.password || (accountData.role === 'ADMIN' ? 'admin123' : accountData.role === 'TEACHER' ? 'teacher123' : accountData.role === 'STUDENT' ? 'student123' : 'parent123'),
+      email: emailToUse,
+      username: usernameToUse,
+      password: accountData.password || defaultPassword,
       roles: accountData.roles || [accountData.role],
       primaryRole: accountData.primaryRole || accountData.role,
+      status: accountData.status || 'active',
+      studentProfileId: accountData.studentProfileId || (isStudent ? accountData.profileId : undefined),
+      guardianProfileId: accountData.guardianProfileId || (isParent ? accountData.profileId : undefined),
+      teacherProfileId: accountData.teacherProfileId || (isTeacher ? accountData.profileId : undefined),
       createdAt: new Date().toISOString().split('T')[0]
     };
-    setAccounts(prev => [newAcc, ...prev]);
+
+    setAccounts(prev => {
+      const updated = [newAcc, ...prev.filter(a => a.uid !== newAcc.uid && a.email.toLowerCase() !== newAcc.email.toLowerCase())];
+      localStorage.setItem(LOCAL_STORAGE_ACCOUNTS_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const updateAccountStatus = (uid: string, status: AccountStatus, note?: string) => {
-    setAccounts(prev => prev.map(a => {
-      if (a.uid === uid) {
-        return { 
-          ...a, 
-          status, 
-          note: note !== undefined ? note : a.note 
-        };
-      }
-      return a;
-    }));
+    setAccounts(prev => {
+      const updated = prev.map(a => {
+        if (a.uid === uid) {
+          return { 
+            ...a, 
+            status, 
+            note: note !== undefined ? note : a.note 
+          };
+        }
+        return a;
+      });
+      localStorage.setItem(LOCAL_STORAGE_ACCOUNTS_KEY, JSON.stringify(updated));
+      return updated;
+    });
 
     if (currentUser?.uid === uid) {
       setCurrentUser(prev => prev ? { ...prev, status, note: note !== undefined ? note : prev.note } : null);
@@ -699,12 +891,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateAccountRole = (uid: string, roleToSet: UserRole, additionalRoles?: UserRole[]) => {
     const updatedRoles = additionalRoles ? Array.from(new Set([roleToSet, ...additionalRoles])) : [roleToSet];
-    setAccounts(prev => prev.map(a => a.uid === uid ? { 
-      ...a, 
-      role: roleToSet,
-      roles: updatedRoles,
-      primaryRole: roleToSet
-    } : a));
+    setAccounts(prev => {
+      const updated = prev.map(a => a.uid === uid ? { 
+        ...a, 
+        role: roleToSet,
+        roles: updatedRoles,
+        primaryRole: roleToSet
+      } : a);
+      localStorage.setItem(LOCAL_STORAGE_ACCOUNTS_KEY, JSON.stringify(updated));
+      return updated;
+    });
     if (currentUser?.uid === uid) {
       setCurrentUser(prev => prev ? { 
         ...prev, 
@@ -726,24 +922,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     setCurrentUser(updatedUser);
-    setAccounts(prev => prev.map(a => a.uid === currentUser.uid ? updatedUser : a));
+    setAccounts(prev => {
+      const updated = prev.map(a => a.uid === currentUser.uid ? updatedUser : a);
+      localStorage.setItem(LOCAL_STORAGE_ACCOUNTS_KEY, JSON.stringify(updated));
+      return updated;
+    });
 
     return { success: true };
   };
 
   const linkAccountToProfile = (uid: string, profileId: string, profileName: string, profileCode: string) => {
-    setAccounts(prev => prev.map(a => {
-      if (a.uid === uid) {
-        return {
-          ...a,
-          profileId,
-          profileName,
-          profileCode,
-          status: 'active'
-        };
-      }
-      return a;
-    }));
+    setAccounts(prev => {
+      const updated = prev.map(a => {
+        if (a.uid === uid) {
+          const isStudent = a.role === 'STUDENT';
+          const isParent = a.role === 'PARENT' || a.role === 'GUARDIAN';
+          const isTeacher = a.role === 'TEACHER';
+          return {
+            ...a,
+            profileId,
+            profileName,
+            profileCode,
+            studentProfileId: isStudent ? profileId : a.studentProfileId,
+            guardianProfileId: isParent ? profileId : a.guardianProfileId,
+            teacherProfileId: isTeacher ? profileId : a.teacherProfileId,
+            status: 'active' as AccountStatus
+          };
+        }
+        return a;
+      });
+      localStorage.setItem(LOCAL_STORAGE_ACCOUNTS_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const deleteAccount = (uid: string) => {
