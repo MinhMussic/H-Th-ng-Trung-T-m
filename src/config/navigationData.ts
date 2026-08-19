@@ -424,6 +424,66 @@ export const TEACHER_NAV_CONFIG: MainMenuItem[] = [
     ]
   },
   {
+    id: 'salary',
+    label: 'Lương & Thưởng',
+    icon: DollarSign,
+    color: 'emerald',
+    defaultSubId: 'teacher_salary',
+    subItems: [
+      {
+        id: 'teacher_salary',
+        label: 'Bảng Lương & Phiếu Thù Lao',
+        shortLabel: 'Bảng lương cá nhân',
+        icon: DollarSign,
+        description: 'Xem chi tiết lương theo ca dạy, theo giờ, thưởng và phụ cấp'
+      },
+      {
+        id: 'shifts_log',
+        label: 'Nhật Ký Ca Dạy & Giờ Giảng',
+        shortLabel: 'Nhật ký ca dạy',
+        icon: Clock,
+        description: 'Tra cứu danh sách ca dạy thực tế và thù lao từng buổi'
+      },
+      {
+        id: 'bonuses_list',
+        label: 'Tiền Thưởng & Đãi Ngộ',
+        shortLabel: 'Tiền thưởng',
+        icon: Award,
+        description: 'Chi tiết thưởng chuyên cần, chấm bài và thành tích học viên'
+      }
+    ]
+  },
+  {
+    id: 'honor',
+    label: 'Bảng vinh danh',
+    icon: Trophy,
+    color: 'amber',
+    defaultSubId: 'center_honor',
+    subItems: [
+      {
+        id: 'center_honor',
+        label: 'Bảng Vàng Toàn Trung Tâm',
+        shortLabel: 'Vinh danh trung tâm',
+        icon: Trophy,
+        description: 'Top gương mặt học viên xuất sắc nhất toàn hệ thống'
+      },
+      {
+        id: 'subject_honor',
+        label: 'Vinh Danh Theo Từng Môn Học',
+        shortLabel: 'Vinh danh theo môn',
+        icon: Music,
+        description: 'Bảng xếp hạng thành tích Piano, Guitar, Vocal, Violin, Trống...'
+      },
+      {
+        id: 'class_honor',
+        label: 'Vinh Danh Lớp Thầy/Cô Dạy',
+        shortLabel: 'Lớp thầy/cô dạy',
+        icon: Sparkles,
+        description: 'Tuyên dương học viên tích cực trong các lớp mình phụ trách'
+      }
+    ]
+  },
+  {
     id: 'profile',
     label: 'Hồ sơ cá nhân',
     icon: UserCheck,

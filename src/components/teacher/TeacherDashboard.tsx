@@ -6,6 +6,8 @@ import { UserProfileModal } from '../profile/UserProfileModal';
 import { IndividualAssignmentModal } from '../gamification/IndividualAssignmentModal';
 import { GradeSubmissionModal } from '../gamification/GradeSubmissionModal';
 import { RealtimeGreetingCard } from '../common/RealtimeGreetingCard';
+import { TeacherSalaryView } from './TeacherSalaryView';
+import { TeacherHonorBoardView } from './TeacherHonorBoardView';
 import {
   CalendarDays,
   School,
@@ -28,11 +30,26 @@ import {
   Unlock,
   Lock,
   Check,
-  Palmtree
+  Palmtree,
+  DollarSign,
+  Trophy
 } from 'lucide-react';
 
-export const TeacherDashboard: React.FC = () => {
+interface TeacherDashboardProps {
+  initialTab?: 'overview' | 'salary' | 'honor';
+}
+
+export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
+  initialTab = 'overview'
+}) => {
   const { currentUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<'overview' | 'salary' | 'honor'>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const { 
     classes, 
     students, 
@@ -236,32 +253,82 @@ export const TeacherDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Class Selector Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <School className="w-5 h-5 text-blue-600" />
-          <span className="font-bold text-slate-700 text-xs">Lớp đang giảng dạy:</span>
-          <select
-            value={selectedClassId}
-            onChange={(e) => setSelectedClassId(e.target.value)}
-            className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 text-slate-900"
-          >
-            {myClasses.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.subject}) - {c.scheduleText}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Navigation Tabs for Teacher */}
+      <div className="bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'overview'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <School className="w-4 h-4" />
+          <span>Bàn Giảng Dạy & Điểm Danh</span>
+        </button>
 
-        <div className="text-xs text-slate-500 font-semibold flex items-center gap-3">
-          <span>Phòng: <strong className="text-slate-800">{selectedClass.room || 'Phòng 01'}</strong></span>
-          <span>Sĩ số: <strong className="text-blue-700">{classStudents.length} học viên</strong></span>
-        </div>
+        <button
+          onClick={() => setActiveTab('salary')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'salary'
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <DollarSign className="w-4 h-4" />
+          <span>Bảng Lương & Thù Lao Ca Dạy</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('honor')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'honor'
+              ? 'bg-amber-500 text-slate-950 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Trophy className="w-4 h-4" />
+          <span>Bảng Vinh Danh Học Viên</span>
+        </button>
       </div>
 
-      {/* Main Grid: 2 Cols Left (Students & Individual Tasks), 1 Col Right (Submissions to Grade & Makeup) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* RENDER VIEW ACCORDING TO ACTIVE TAB */}
+      {activeTab === 'salary' && (
+        <TeacherSalaryView />
+      )}
+
+      {activeTab === 'honor' && (
+        <TeacherHonorBoardView />
+      )}
+
+      {activeTab === 'overview' && (
+        <>
+          {/* Class Selector Bar */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <School className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">Lớp đang giảng dạy:</span>
+              <select
+                value={selectedClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white cursor-pointer"
+              >
+                {myClasses.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.subject}) - {c.scheduleText}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-3">
+              <span>Phòng: <strong className="text-slate-800 dark:text-slate-200">{selectedClass.room || 'Phòng 01'}</strong></span>
+              <span>Sĩ số: <strong className="text-blue-700 dark:text-blue-400">{classStudents.length} học viên</strong></span>
+            </div>
+          </div>
+
+          {/* Main Grid: 2 Cols Left (Students & Individual Tasks), 1 Col Right (Submissions to Grade & Makeup) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left 2 Cols: Danh Sách Học Viên Trong Lớp & Điểm Danh / Giao Bài Cá Nhân */}
         <div className="lg:col-span-2 space-y-4">
@@ -547,6 +614,8 @@ export const TeacherDashboard: React.FC = () => {
         </div>
 
       </div>
+      </>
+      )}
 
       {/* Giao Bài Tập Cá Nhân Modal */}
       <IndividualAssignmentModal

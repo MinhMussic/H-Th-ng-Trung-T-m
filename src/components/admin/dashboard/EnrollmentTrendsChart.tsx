@@ -5,8 +5,6 @@ import {
   Area,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,7 +20,8 @@ import {
   Filter,
   Sparkles,
   ArrowUpRight,
-  Music
+  Music,
+  UserPlus
 } from 'lucide-react';
 
 interface EnrollmentTrendsChartProps {
@@ -31,14 +30,13 @@ interface EnrollmentTrendsChartProps {
 }
 
 export const EnrollmentTrendsChart: React.FC<EnrollmentTrendsChartProps> = ({
-  students,
+  students = [],
   onNavigateToStudents
 }) => {
   const [timeRange, setTimeRange] = useState<'6M' | '12M'>('6M');
   const [chartView, setChartView] = useState<'area' | 'bar' | 'subject'>('area');
-  const [selectedSubject, setSelectedSubject] = useState<string>('ALL');
 
-  // Compute monthly enrollment data
+  // Compute monthly enrollment data strictly from real student records
   const chartData = useMemo(() => {
     const monthsCount = timeRange === '6M' ? 6 : 12;
     const now = new Date();
@@ -53,7 +51,7 @@ export const EnrollmentTrendsChart: React.FC<EnrollmentTrendsChartProps> = ({
       other: number;
     }> = [];
 
-    // Generate month slots from past to present
+    // Generate month slots from past to present based on real clock
     for (let i = monthsCount - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const year = d.getFullYear();
@@ -73,22 +71,20 @@ export const EnrollmentTrendsChart: React.FC<EnrollmentTrendsChartProps> = ({
       });
     }
 
-    // Distribute students by joinDate
-    students.forEach((student, index) => {
-      const joinDateStr = student.joinDate || student.birthDate || '2024-10-01';
-      const studentMonthKey = joinDateStr.slice(0, 7);
-      const subjects = student.enrolledSubjects || [];
-      const hasPiano = subjects.some(s => s.toLowerCase().includes('piano') || s.toLowerCase().includes('keyboard'));
-      const hasGuitar = subjects.some(s => s.toLowerCase().includes('guitar') || s.toLowerCase().includes('ukulele'));
-      const hasVocal = subjects.some(s => s.toLowerCase().includes('thanh nhạc') || s.toLowerCase().includes('vocal') || s.toLowerCase().includes('hát'));
-
-      let slot = result.find(r => r.monthKey === studentMonthKey);
-      if (!slot && result.length > 0) {
-        // Deterministic fallback distribution based on index if student date is outside range
-        const fallbackIdx = index % result.length;
-        slot = result[fallbackIdx];
+    // Distribute students by real joinDate / createdAt
+    students.forEach((student) => {
+      const joinDateStr = student.joinDate || student.joinedDate || (student as any).createdAt || '';
+      let studentMonthKey = '';
+      if (joinDateStr && typeof joinDateStr === 'string' && joinDateStr.length >= 7) {
+        studentMonthKey = joinDateStr.slice(0, 7);
       }
 
+      const subjects = (student.enrolledSubjects || []).map(s => (s || '').toLowerCase());
+      const hasPiano = subjects.some(s => s.includes('piano') || s.includes('keyboard') || s.includes('organ'));
+      const hasGuitar = subjects.some(s => s.includes('guitar') || s.includes('ukulele'));
+      const hasVocal = subjects.some(s => s.includes('thanh nhạc') || s.includes('vocal') || s.includes('hát'));
+
+      const slot = result.find(r => r.monthKey === studentMonthKey);
       if (slot) {
         slot.newStudents += 1;
         if (hasPiano) slot.piano += 1;
@@ -98,16 +94,9 @@ export const EnrollmentTrendsChart: React.FC<EnrollmentTrendsChartProps> = ({
       }
     });
 
-    // Baseline minimum numbers for rich visualization if database has few students
-    let runningActive = Math.max(12, Math.floor(students.length * 0.6));
-    result.forEach((item, idx) => {
-      if (item.newStudents === 0) {
-        const baseSynthetic = [3, 5, 4, 6, 5, 7, 6, 8, 9, 7, 8, 10];
-        item.newStudents = baseSynthetic[idx % baseSynthetic.length];
-        item.piano = Math.ceil(item.newStudents * 0.5);
-        item.guitar = Math.floor(item.newStudents * 0.3);
-        item.vocal = Math.max(1, item.newStudents - item.piano - item.guitar);
-      }
+    // Real cumulative active students calculation
+    let runningActive = 0;
+    result.forEach((item) => {
       runningActive += item.newStudents;
       item.activeTotal = runningActive;
     });
@@ -115,13 +104,20 @@ export const EnrollmentTrendsChart: React.FC<EnrollmentTrendsChartProps> = ({
     return result;
   }, [students, timeRange]);
 
-  // Overall calculations
+  // Overall calculations based 100% on real data
   const totalNewInPeriod = chartData.reduce((sum, item) => sum + item.newStudents, 0);
-  const latestMonth = chartData[chartData.length - 1];
+  const latestMonth = chartData[chartData.length - 1] || { label: 'T8/26', newStudents: 0 };
   const prevMonth = chartData[chartData.length - 2] || latestMonth;
-  const growthRate = prevMonth.newStudents > 0 
-    ? Math.round(((latestMonth.newStudents - prevMonth.newStudents) / prevMonth.newStudents) * 100)
-    : 15;
+  
+  const growthRate = useMemo(() => {
+    const prev = prevMonth.newStudents;
+    const curr = latestMonth.newStudents;
+    if (prev === 0 && curr === 0) return 0;
+    if (prev === 0 && curr > 0) return 100;
+    return Math.round(((curr - prev) / prev) * 100);
+  }, [prevMonth, latestMonth]);
+
+  const hasAnyData = students.length > 0 && totalNewInPeriod > 0;
 
   // Custom Chart Tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -180,7 +176,9 @@ export const EnrollmentTrendsChart: React.FC<EnrollmentTrendsChartProps> = ({
                 <h3 className="text-base font-extrabold text-slate-900 font-heading">
                   Xu Hướng Tuyển Sinh & Đăng Ký
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  totalNewInPeriod > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                }`}>
                   +{totalNewInPeriod} HV mới
                 </span>
               </div>
@@ -233,7 +231,7 @@ export const EnrollmentTrendsChart: React.FC<EnrollmentTrendsChartProps> = ({
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value as any)}
-              className="text-xs font-bold py-1 px-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="text-xs font-bold py-1 px-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
             >
               <option value="6M">6 Tháng</option>
               <option value="12M">12 Tháng</option>
@@ -260,8 +258,32 @@ export const EnrollmentTrendsChart: React.FC<EnrollmentTrendsChartProps> = ({
         </div>
       </div>
 
-      {/* Interactive Recharts Canvas */}
-      <div className="h-64 w-full pt-2">
+      {/* Interactive Recharts Canvas with Empty State Overlay if 0 students */}
+      <div className="h-64 w-full pt-2 relative">
+        {!hasAnyData && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-[2px] rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-2 shadow-xs">
+              <Users className="w-5 h-5" />
+            </div>
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              Chưa có dữ liệu học viên trong kỳ thống kê
+            </p>
+            <p className="text-[11px] text-slate-500 max-w-xs mt-0.5 mb-3">
+              Biểu đồ sẽ tự động thể hiện xu hướng tăng trưởng khi bạn thêm học viên mới vào hệ thống.
+            </p>
+            {onNavigateToStudents && (
+              <button
+                type="button"
+                onClick={onNavigateToStudents}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>+ Thêm Học Viên Mới</span>
+              </button>
+            )}
+          </div>
+        )}
+
         <ResponsiveContainer width="100%" height="100%">
           {chartView === 'area' ? (
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -287,6 +309,7 @@ export const EnrollmentTrendsChart: React.FC<EnrollmentTrendsChartProps> = ({
                 axisLine={false}
                 tick={{ fontSize: 11, fill: '#94a3b8' }}
                 allowDecimals={false}
+                domain={[0, (dataMax: number) => Math.max(5, dataMax + 1)]}
               />
               <Tooltip content={<CustomTooltip />} />
               <Area
@@ -314,6 +337,7 @@ export const EnrollmentTrendsChart: React.FC<EnrollmentTrendsChartProps> = ({
                 axisLine={false}
                 tick={{ fontSize: 11, fill: '#94a3b8' }}
                 allowDecimals={false}
+                domain={[0, (dataMax: number) => Math.max(5, dataMax + 1)]}
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar
@@ -338,6 +362,7 @@ export const EnrollmentTrendsChart: React.FC<EnrollmentTrendsChartProps> = ({
                 axisLine={false}
                 tick={{ fontSize: 11, fill: '#94a3b8' }}
                 allowDecimals={false}
+                domain={[0, (dataMax: number) => Math.max(5, dataMax + 1)]}
               />
               <Tooltip content={<CustomTooltip />} />
               <Legend

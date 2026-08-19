@@ -34,7 +34,9 @@ import {
   CenterHoliday,
   MusicEvent,
   MusicEventType,
-  EventAudience
+  EventAudience,
+  TeacherSalaryRecord,
+  TeacherSessionSalaryLog
 } from '../types';
 import {
   initialStudents,
@@ -59,7 +61,8 @@ import {
   initialScheduleChangeRequests,
   initialPaymentSubmissions,
   initialHolidays,
-  initialEvents
+  initialEvents,
+  initialTeacherSalaries
 } from '../data/initialData';
 import { getNextAvailableStudentCode, getNextTrialCode, isStudentCodeProtectedOrLocked } from '../utils/studentCode';
 import { sendInstantAttendancePush, formatAttendancePushMessage } from '../utils/pushNotification';
@@ -243,6 +246,16 @@ interface DataContextType {
   addTeacher: (teacher: Omit<Teacher, 'id' | 'joinDate'>) => void;
   updateTeacher: (id: string, updates: Partial<Teacher>) => void;
   deleteTeacher: (id: string) => void;
+
+  // Teacher Salary & Payroll (Tính lương theo ca dạy, theo giờ, tiền thưởng)
+  teacherSalaries: TeacherSalaryRecord[];
+  addTeacherSalaryRecord: (record: Omit<TeacherSalaryRecord, 'id' | 'createdAt'>) => void;
+  updateTeacherSalaryRecord: (id: string, updates: Partial<TeacherSalaryRecord>) => void;
+  deleteTeacherSalaryRecord: (id: string) => void;
+  calculateTeacherSalaryForMonth: (teacherId: string, month: string, year: number) => TeacherSalaryRecord;
+  generateTeacherPayrollForMonth: (month: string, year: number) => void;
+  getTeacherSalaryByMonth: (teacherId: string, month: string) => TeacherSalaryRecord | undefined;
+  getTeacherSessionLogsForMonth: (teacherId: string, month: string) => TeacherSessionSalaryLog[];
 
   // Courses & Classes CRUD
   addSubject: (subject: Omit<Subject, 'id'>) => void;
@@ -518,8 +531,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const list = loaded !== null && Array.isArray(loaded) ? loaded : initialEvents;
     return sanitizeUniqueCollection(list, 'evt');
   });
+  const [teacherSalaries, setTeacherSalaries] = useState<TeacherSalaryRecord[]>(() => {
+    const loaded = loadInitial<TeacherSalaryRecord[] | null>('teacher_salaries', null);
+    const list = loaded !== null && Array.isArray(loaded) ? loaded : initialTeacherSalaries;
+    return sanitizeUniqueCollection(list, 'sal');
+  });
 
   // Sync to local storage
+  useEffect(() => { localStorage.setItem(PREFIX + 'teacher_salaries', JSON.stringify(teacherSalaries)); }, [teacherSalaries]);
   useEffect(() => { localStorage.setItem(PREFIX + 'events', JSON.stringify(events)); }, [events]);
   useEffect(() => { localStorage.setItem(PREFIX + 'holidays', JSON.stringify(holidays)); }, [holidays]);
   useEffect(() => { localStorage.setItem(PREFIX + 'students', JSON.stringify(students)); }, [students]);
@@ -1624,6 +1643,191 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setTuitionPayments(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
   };
 
+  // =========================================================================
+  // TEACHER SALARY & PAYROLL CALCULATION ENGINE
+  // =========================================================================
+  const getTeacherSessionLogsForMonth = (teacherId: string, month: string): TeacherSessionSalaryLog[] => {
+    const targetTeacher = teachers.find(t => t.id === teacherId || t.code === teacherId);
+    if (!targetTeacher) return [];
+
+    const defaultSessionRate = targetTeacher.shiftRate || 250000;
+    const defaultHourlyRate = targetTeacher.hourlyRate || 200000;
+
+    const teacherClasses = classes.filter(c => 
+      c.teacherId === targetTeacher.id || 
+      c.teacherIds?.includes(targetTeacher.id) || 
+      (c.teacherName && c.teacherName.toLowerCase().includes(targetTeacher.fullName.toLowerCase()))
+    );
+    const classIds = new Set(teacherClasses.map(c => c.id));
+
+    const sessionMap = new Map<string, { date: string; classId: string; studentsCount: number; sessionNumber?: number }>();
+    
+    attendance.forEach(att => {
+      if (!att.date || !att.date.startsWith(month)) return;
+      if (classIds.has(att.classId) || (att.recordedBy && att.recordedBy.includes(targetTeacher.fullName))) {
+        const key = `${att.classId}_${att.date}`;
+        const existing = sessionMap.get(key);
+        const isAttended = att.status === 'present' || att.status === 'late' || att.status === 'makeup';
+        if (existing) {
+          if (isAttended) existing.studentsCount += 1;
+        } else {
+          sessionMap.set(key, {
+            date: att.date,
+            classId: att.classId,
+            studentsCount: isAttended ? 1 : 0,
+            sessionNumber: att.sessionNumber
+          });
+        }
+      }
+    });
+
+    const logs: TeacherSessionSalaryLog[] = [];
+    let idx = 1;
+    sessionMap.forEach((val) => {
+      const cls = classes.find(c => c.id === val.classId);
+      const durationHours = 1.5;
+      const amount = defaultSessionRate;
+      logs.push({
+        id: `slog-${targetTeacher.id}-${val.date}-${idx++}`,
+        teacherId: targetTeacher.id,
+        date: val.date,
+        classId: val.classId,
+        className: cls?.name || 'Lớp Âm Nhạc',
+        subjectName: cls?.subject || cls?.subjectName || 'Âm nhạc',
+        room: cls?.room || 'Phòng học 01',
+        sessionNumber: val.sessionNumber || idx,
+        startTime: '17:30',
+        endTime: '19:00',
+        durationHours,
+        studentsAttendedCount: val.studentsCount,
+        sessionRate: defaultSessionRate,
+        hourlyRate: defaultHourlyRate,
+        calculatedAmount: amount,
+        status: 'completed',
+        notes: `Ca dạy hoàn thành (${val.studentsCount} học viên tham gia)`
+      });
+    });
+
+    return logs.sort((a, b) => a.date.localeCompare(b.date));
+  };
+
+  const calculateTeacherSalaryForMonth = (teacherId: string, month: string, year: number): TeacherSalaryRecord => {
+    const targetTeacher = teachers.find(t => t.id === teacherId || t.code === teacherId);
+    const existingRec = teacherSalaries.find(s => (s.teacherId === teacherId || s.teacherCode === teacherId) && s.month === month);
+    
+    const logs = getTeacherSessionLogsForMonth(teacherId, month);
+    const totalSessions = logs.length > 0 ? logs.length : (existingRec?.totalSessions || 24);
+    const totalHours = logs.length > 0 ? logs.reduce((sum, l) => sum + l.durationHours, 0) : (existingRec?.totalHours || totalSessions * 1.5);
+    
+    const sessionRate = targetTeacher?.shiftRate || existingRec?.sessionRate || 250000;
+    const hourlyRate = targetTeacher?.hourlyRate || existingRec?.hourlyRate || 200000;
+    const baseSalary = targetTeacher?.baseSalary || existingRec?.baseSalary || 2000000;
+    
+    const sessionSalary = totalSessions * sessionRate;
+    const hourlySalary = totalHours * hourlyRate;
+    const grossTeachingSalary = sessionSalary;
+    
+    const bonusAmount = existingRec?.bonusAmount !== undefined ? existingRec.bonusAmount : 1000000;
+    const allowanceAmount = existingRec?.allowanceAmount !== undefined ? existingRec.allowanceAmount : 600000;
+    const deductionAmount = existingRec?.deductionAmount || 0;
+    
+    const totalNetSalary = grossTeachingSalary + (baseSalary || 0) + bonusAmount + allowanceAmount - deductionAmount;
+
+    return {
+      id: existingRec?.id || generateUniqueId('sal'),
+      teacherId: targetTeacher?.id || teacherId,
+      teacherCode: targetTeacher?.code || 'GV001',
+      teacherName: targetTeacher?.fullName || 'Giáo viên',
+      teacherAvatar: targetTeacher?.avatar,
+      teacherPhone: targetTeacher?.phone,
+      specialties: targetTeacher?.specialties,
+      month,
+      year,
+      totalSessions,
+      totalHours,
+      sessionRate,
+      hourlyRate,
+      baseSalary,
+      sessionSalary,
+      hourlySalary,
+      calculationMethod: 'by_session',
+      grossTeachingSalary,
+      bonusAmount,
+      bonusNotes: existingRec?.bonusNotes || 'Thưởng chuyên cần và chất lượng giảng dạy',
+      bonusesList: existingRec?.bonusesList || [
+        { id: 'bn-d1', title: 'Thưởng chuyên cần giảng dạy 100%', amount: 500000, type: 'attendance', date: `${month}-28` },
+        { id: 'bn-d2', title: 'Thưởng đánh giá xuất sắc & phản hồi học viên', amount: 500000, type: 'performance', date: `${month}-30` }
+      ],
+      allowanceAmount,
+      deductionAmount,
+      totalNetSalary,
+      status: existingRec?.status || 'approved',
+      paymentDate: existingRec?.paymentDate || `${month}-05`,
+      paymentMethod: existingRec?.paymentMethod || 'bank_transfer',
+      bankAccount: targetTeacher?.bankAccount || existingRec?.bankAccount || '19033458899018',
+      bankName: targetTeacher?.bankName || existingRec?.bankName || 'Techcombank',
+      bankHolder: targetTeacher?.bankHolder || targetTeacher?.fullName || 'NGUYEN VAN MINH',
+      transferSyntax: `LUONG THANG ${month.split('-')[1] || month}-${year} ${targetTeacher?.code || ''} ${targetTeacher?.fullName || ''}`,
+      sessionLogs: logs.length > 0 ? logs : (existingRec?.sessionLogs || []),
+      notes: existingRec?.notes || 'Bảng lương tổng hợp tự động theo ca dạy và thời lượng thực tế.',
+      createdAt: existingRec?.createdAt || new Date().toISOString().split('T')[0],
+      updatedAt: new Date().toISOString().split('T')[0]
+    };
+  };
+
+  const getTeacherSalaryByMonth = (teacherId: string, month: string): TeacherSalaryRecord | undefined => {
+    const existing = teacherSalaries.find(s => (s.teacherId === teacherId || s.teacherCode === teacherId) && s.month === month);
+    if (existing) return existing;
+    const targetTeacher = teachers.find(t => t.id === teacherId || t.code === teacherId);
+    if (targetTeacher) {
+      const year = parseInt(month.split('-')[0], 10) || new Date().getFullYear();
+      return calculateTeacherSalaryForMonth(targetTeacher.id, month, year);
+    }
+    return undefined;
+  };
+
+  const addTeacherSalaryRecord = (record: Omit<TeacherSalaryRecord, 'id' | 'createdAt'>) => {
+    const newRecord: TeacherSalaryRecord = {
+      ...record,
+      id: generateUniqueId('sal'),
+      createdAt: new Date().toISOString().split('T')[0],
+      updatedAt: new Date().toISOString().split('T')[0]
+    };
+    setTeacherSalaries(prev => [newRecord, ...prev]);
+    addNotification({
+      title: '💵 Tạo bảng lương giáo viên mới',
+      content: `Đã lập bảng lương tháng ${newRecord.month} cho giảng viên ${newRecord.teacherName} (Thực nhận: ${newRecord.totalNetSalary.toLocaleString('vi-VN')} đ).`,
+      type: 'system',
+      targetRoles: ['ADMIN', 'TEACHER']
+    });
+  };
+
+  const updateTeacherSalaryRecord = (id: string, updates: Partial<TeacherSalaryRecord>) => {
+    setTeacherSalaries(prev => prev.map(s => s.id === id ? { ...s, ...updates, updatedAt: new Date().toISOString().split('T')[0] } : s));
+  };
+
+  const deleteTeacherSalaryRecord = (id: string) => {
+    setTeacherSalaries(prev => prev.filter(s => s.id !== id));
+  };
+
+  const generateTeacherPayrollForMonth = (month: string, year: number) => {
+    const newRecords: TeacherSalaryRecord[] = teachers.map(t => {
+      const existing = teacherSalaries.find(s => s.teacherId === t.id && s.month === month);
+      if (existing) return existing;
+      return calculateTeacherSalaryForMonth(t.id, month, year);
+    });
+    setTeacherSalaries(prev => {
+      const filtered = prev.filter(p => p.month !== month);
+      return [...newRecords, ...filtered];
+    });
+    addNotification({
+      title: `📊 Đã đồng bộ bảng lương tháng ${month}`,
+      content: `Hệ thống đã tự động tính toán và cập nhật bảng lương cho ${teachers.length} giảng viên theo ca dạy và giờ thực tế.`,
+      type: 'system',
+      targetRoles: ['ADMIN', 'TEACHER']
+    });
+  };
+
   // Birthday Templates
   const addBirthdayTemplate = (tpl: Omit<BirthdayTemplate, 'id'>) => {
     const newTpl: BirthdayTemplate = {
@@ -2699,6 +2903,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         addTeacher,
         updateTeacher,
         deleteTeacher,
+        teacherSalaries,
+        addTeacherSalaryRecord,
+        updateTeacherSalaryRecord,
+        deleteTeacherSalaryRecord,
+        calculateTeacherSalaryForMonth,
+        generateTeacherPayrollForMonth,
+        getTeacherSalaryByMonth,
+        getTeacherSessionLogsForMonth,
         addSubject,
         updateSubject,
         deleteSubject,

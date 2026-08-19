@@ -14,7 +14,9 @@ import {
   Users,
   Menu,
   Sparkles,
-  Gift
+  Gift,
+  DollarSign,
+  Trophy
 } from 'lucide-react';
 import { AdminMenuTab } from '../../types';
 import { STUDENT_NAV_CONFIG, PARENT_NAV_CONFIG, TEACHER_NAV_CONFIG } from '../../config/navigationData';
@@ -139,8 +141,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     const teacherNavItems = [
       { id: 'dashboard', label: 'Bàn dạy', icon: LayoutDashboard },
       { id: 'attendance', label: 'Điểm danh', icon: CheckSquare },
-      { id: 'schedule', label: 'Lịch dạy', icon: CalendarDays },
-      { id: 'classes', label: 'Lớp học', icon: Users },
+      { id: 'salary', label: 'Lương thưởng', icon: DollarSign },
+      { id: 'honor', label: 'Vinh danh', icon: Trophy },
       { id: 'profile', label: 'Hồ sơ', icon: User, action: onOpenProfile }
     ];
 

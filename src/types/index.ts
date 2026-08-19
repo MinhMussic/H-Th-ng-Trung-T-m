@@ -182,11 +182,16 @@ export interface Teacher {
   specialties: string[]; // ['Piano', 'Guitar', 'Thanh nhạc']
   bio?: string;
   avatar?: string;
-  hourlyRate?: number;
+  hourlyRate?: number; // Mức thù lao theo giờ (VND/giờ) e.g. 200,000
+  shiftRate?: number; // Mức thù lao theo ca dạy (VND/ca) e.g. 250,000
+  baseSalary?: number; // Lương cứng cơ bản (nếu có)
   status: 'active' | 'on_leave' | 'inactive';
   userId?: string;
   hireDate?: string;
   joinDate?: string;
+  bankAccount?: string;
+  bankName?: string;
+  bankHolder?: string;
 }
 
 export interface Subject {
@@ -459,6 +464,8 @@ export interface StarLeaderboardItem {
   totalLessons?: number;
   completedLessons?: number;
   subject?: string;
+  className?: string;
+  classId?: string;
   classNameOrSubject?: string;
   rank?: number;
   rankTitle?: string;
@@ -725,6 +732,8 @@ export type AdminMenuTab =
   | 'achievements'
   // TÀI CHÍNH & HỆ THỐNG
   | 'tuition'
+  | 'salary'
+  | 'honor'
   | 'tax_report'
   | 'notifications'
   | 'reports'
@@ -900,4 +909,108 @@ export interface PaymentSubmission {
   confirmedBy?: string;
   confirmedAt?: string;
 }
+
+// ==========================================
+// TEACHER SALARY & PAYROLL MANAGEMENT TYPES
+// ==========================================
+export type TeacherSalaryStatus = 'draft' | 'pending' | 'approved' | 'paid';
+export type SalaryCalculationMethod = 'by_session' | 'by_hour' | 'combined';
+
+export interface TeacherSessionSalaryLog {
+  id: string;
+  salaryRecordId?: string;
+  teacherId: string;
+  date: string; // YYYY-MM-DD
+  classId: string;
+  className: string;
+  subjectName: string;
+  room?: string;
+  sessionNumber?: number;
+  startTime?: string;
+  endTime?: string;
+  durationHours: number; // e.g. 1.5 giờ (90 phút)
+  studentsAttendedCount: number; // Số học viên đi học
+  sessionRate: number; // Đơn giá theo ca (VND/ca)
+  hourlyRate: number; // Đơn giá theo giờ (VND/giờ)
+  calculatedAmount: number; // Thù lao buổi này
+  status: 'completed' | 'verified' | 'substituted' | 'cancelled';
+  notes?: string;
+}
+
+export interface TeacherBonusDetail {
+  id: string;
+  title: string; // e.g. "Thưởng chuyên cần 100%", "Thưởng học viên đạt chứng chỉ xuất sắc", "Phụ cấp bộ môn"
+  amount: number;
+  type: 'attendance' | 'performance' | 'kpi' | 'responsibility' | 'other';
+  date?: string;
+  notes?: string;
+}
+
+export interface TeacherDeductionDetail {
+  id: string;
+  title: string; // e.g. "Tạm ứng đầu tháng", "Đi muộn quá quy định"
+  amount: number;
+  type: 'advance' | 'late' | 'penalty' | 'other';
+  date?: string;
+  notes?: string;
+}
+
+export interface TeacherSalaryRecord {
+  id: string;
+  teacherId: string;
+  teacherCode: string;
+  teacherName: string;
+  teacherAvatar?: string;
+  teacherPhone?: string;
+  specialties?: string[];
+  month: string; // e.g. "2026-03" (Tháng 03/2026)
+  year: number; // 2026
+  
+  // Work volume metrics
+  totalSessions: number; // Tổng số ca/buổi dạy hoàn thành
+  totalHours: number; // Tổng số giờ giảng dạy (e.g. 36.5 giờ)
+  
+  // Rates applied
+  sessionRate: number; // Mức thù lao theo ca dạy (VND/ca) vd: 250,000đ
+  hourlyRate: number; // Mức lương theo giờ (VND/giờ) vd: 200,000đ
+  baseSalary?: number; // Lương cơ bản / phụ cấp cố định (nếu có)
+  
+  // Calculated earnings
+  sessionSalary: number; // Tiền lương theo ca = totalSessions * sessionRate
+  hourlySalary: number; // Tiền lương theo giờ = totalHours * hourlyRate
+  calculationMethod: SalaryCalculationMethod; // 'by_session' | 'by_hour' | 'combined'
+  grossTeachingSalary: number; // Tổng lương dạy = sessionSalary (hoặc hourlySalary)
+  
+  // Bonuses & Allowances
+  bonusAmount: number; // Tổng tiền thưởng
+  bonusNotes?: string;
+  bonusesList?: TeacherBonusDetail[];
+  allowanceAmount: number; // Phụ cấp (trách nhiệm, đi lại, học liệu)
+  
+  // Deductions
+  deductionAmount: number; // Các khoản giảm trừ / tạm ứng
+  deductionNotes?: string;
+  deductionsList?: TeacherDeductionDetail[];
+  
+  // Final net payout
+  totalNetSalary: number; // LƯƠNG THỰC NHẬN = grossTeachingSalary + baseSalary + bonusAmount + allowanceAmount - deductionAmount
+  
+  // Payment tracking
+  status: TeacherSalaryStatus; // 'draft' | 'pending' | 'approved' | 'paid'
+  paymentDate?: string; // Ngày thanh toán YYYY-MM-DD
+  paymentMethod?: 'bank_transfer' | 'cash';
+  bankAccount?: string;
+  bankName?: string;
+  bankHolder?: string;
+  transferSyntax?: string; // e.g. "LUONG THANG 03 - GV001 NGUYEN VAN MINH"
+  
+  // Logs & Notes
+  sessionLogs: TeacherSessionSalaryLog[]; // Danh sách từng ca dạy cụ thể trong tháng
+  notes?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 

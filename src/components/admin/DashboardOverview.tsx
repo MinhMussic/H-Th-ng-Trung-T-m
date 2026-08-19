@@ -279,7 +279,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
                   🏆 TOP 3 VINH DANH MINH MUSIC
                 </span>
-                <span className="text-xs text-slate-400 hidden sm:inline font-mono">Tháng 03/2025</span>
+                <span className="text-xs text-slate-400 hidden sm:inline font-mono">
+                  Tháng {String(new Date().getMonth() + 1).padStart(2, '0')}/{new Date().getFullYear()}
+                </span>
               </div>
               <h3 className="text-base font-black text-white font-heading mt-0.5">
                 Gương Mặt Xuất Sắc Dẫn Đầu Bảng Sao Toàn Trung Tâm
@@ -297,65 +299,74 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         </div>
 
         {/* Horizontal Top 3 Grid */}
-        <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          {(starLeaderboard || []).slice(0, 3).map((item, idx) => {
-            const rank = idx + 1;
-            const rankStyle = rank === 1
-              ? 'bg-gradient-to-b from-amber-950/40 via-slate-900 to-slate-900 border-amber-400/40 text-white shadow-lg'
-              : rank === 2
-              ? 'bg-gradient-to-b from-slate-800/60 via-slate-900 to-slate-900 border-slate-600/40 text-white'
-              : 'bg-gradient-to-b from-orange-950/30 via-slate-900 to-slate-900 border-amber-700/40 text-white';
+        {starLeaderboard && starLeaderboard.length > 0 ? (
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            {(starLeaderboard || []).slice(0, 3).map((item, idx) => {
+              const rank = idx + 1;
+              const rankStyle = rank === 1
+                ? 'bg-gradient-to-b from-amber-950/40 via-slate-900 to-slate-900 border-amber-400/40 text-white shadow-lg'
+                : rank === 2
+                ? 'bg-gradient-to-b from-slate-800/60 via-slate-900 to-slate-900 border-slate-600/40 text-white'
+                : 'bg-gradient-to-b from-orange-950/30 via-slate-900 to-slate-900 border-amber-700/40 text-white';
 
-            const badgeColor = rank === 1 ? 'bg-amber-400 text-slate-950' : rank === 2 ? 'bg-slate-300 text-slate-950' : 'bg-amber-600 text-white';
-            const medal = rank === 1 ? '🥇 Quán Quân' : rank === 2 ? '🥈 Á Quân' : '🥉 Top 3';
+              const badgeColor = rank === 1 ? 'bg-amber-400 text-slate-950' : rank === 2 ? 'bg-slate-300 text-slate-950' : 'bg-amber-600 text-white';
+              const medal = rank === 1 ? '🥇 Quán Quân' : rank === 2 ? '🥈 Á Quân' : '🥉 Top 3';
 
-            return (
-              <div
-                key={item.studentId}
-                onClick={() => navigateTo('star_ranking')}
-                className={`p-4 rounded-2xl border ${rankStyle} flex items-center justify-between gap-3 hover:border-amber-400/60 transition-all cursor-pointer group`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className={`w-12 h-12 rounded-full overflow-hidden ${rank === 1 ? 'ring-2 ring-amber-400' : 'ring-2 ring-slate-400'}`}>
-                      {item.avatar ? (
-                        <img src={item.avatar} alt={item.studentName} className="w-full h-full object-cover group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
-                      ) : (
-                        <div className="w-full h-full bg-slate-800 text-white flex items-center justify-center font-bold text-sm">
-                          {item.studentName.charAt(0)}
-                        </div>
-                      )}
+              return (
+                <div
+                  key={item.studentId}
+                  onClick={() => navigateTo('star_ranking')}
+                  className={`p-4 rounded-2xl border ${rankStyle} flex items-center justify-between gap-3 hover:border-amber-400/60 transition-all cursor-pointer group`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className={`w-12 h-12 rounded-full overflow-hidden ${rank === 1 ? 'ring-2 ring-amber-400' : 'ring-2 ring-slate-400'}`}>
+                        {item.avatar ? (
+                          <img src={item.avatar} alt={item.studentName} className="w-full h-full object-cover group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="w-full h-full bg-slate-800 text-white flex items-center justify-center font-bold text-sm">
+                            {item.studentName.charAt(0)}
+                          </div>
+                        )}
+                      </div>
+                      <span className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full ${badgeColor} flex items-center justify-center text-[10px] font-black shadow`}>
+                        {rank}
+                      </span>
                     </div>
-                    <span className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full ${badgeColor} flex items-center justify-center text-[10px] font-black shadow`}>
-                      {rank}
-                    </span>
+
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wide text-amber-300">
+                        {medal}
+                      </span>
+                      <h4 className="text-sm font-extrabold text-white truncate max-w-[130px]">
+                        {item.studentName}
+                      </h4>
+                      {/* Subject name */}
+                      <p className="text-[11px] text-slate-400 font-semibold truncate max-w-[140px]">
+                        {item.subject || item.classNameOrSubject || 'Âm nhạc'}
+                      </p>
+                    </div>
                   </div>
 
-                  <div>
-                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-amber-300">
-                      {medal}
-                    </span>
-                    <h4 className="text-sm font-extrabold text-white truncate max-w-[130px]">
-                      {item.studentName}
-                    </h4>
-                    {/* Subject name */}
-                    <p className="text-[11px] text-slate-400 font-semibold truncate max-w-[140px]">
-                      {item.subject || item.classNameOrSubject || 'Âm nhạc'}
-                    </p>
+                  <div className="text-right">
+                    <div className="flex items-center gap-1 font-black text-sm text-amber-400">
+                      <Star className="w-4 h-4 fill-amber-400" />
+                      <span>{item.totalStars ?? item.stars ?? 0}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">{item.completedLessons ?? 0} buổi</span>
                   </div>
                 </div>
-
-                <div className="text-right">
-                  <div className="flex items-center gap-1 font-black text-sm text-amber-400">
-                    <Star className="w-4 h-4 fill-amber-400" />
-                    <span>{item.totalStars ?? item.stars ?? 0}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400">{item.completedLessons ?? 12} buổi</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="relative z-10 p-5 rounded-2xl bg-white/5 border border-white/10 text-center space-y-1 mt-4">
+            <p className="text-xs font-bold text-amber-300">⭐ Chưa có học viên trên Bảng Vàng vinh danh</p>
+            <p className="text-[11px] text-slate-400 max-w-md mx-auto">
+              Hệ thống sẽ tự động vinh danh Top 3 học viên xuất sắc nhất khi các bạn tích lũy sao qua điểm danh, làm bài tập và biểu diễn âm nhạc.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* TWO COLUMNS: TODAY'S CLASSES & STAR LEADERBOARD */}
@@ -372,48 +383,66 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             </div>
             <button
               onClick={() => navigateTo('schedules')}
-              className="text-xs font-bold text-amber-700 hover:text-amber-800"
+              className="text-xs font-bold text-amber-700 hover:text-amber-800 cursor-pointer"
             >
               Xem toàn bộ lịch →
             </button>
           </div>
 
           <div className="space-y-3">
-            {classes.map((cls) => (
-              <div 
-                key={cls.id}
-                className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 hover:bg-amber-50/30 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs">
-                    <Music className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-slate-900">{cls.name}</span>
-                      <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                        {cls.subject}
-                      </span>
+            {classes.length > 0 ? (
+              classes.slice(0, 5).map((cls) => (
+                <div 
+                  key={cls.id}
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 hover:bg-amber-50/30 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                      <Music className="w-5 h-5" />
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      GV: <strong>{cls.teacherName}</strong> • Phòng: {cls.room} • Lịch: {cls.schedule}
-                    </p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-slate-900">{cls.name}</span>
+                        <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                          {cls.subject}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        GV: <strong>{cls.teacherName || 'Chưa phân công'}</strong> • Phòng: {cls.room || 'P.Học'} • Lịch: {cls.schedule || 'Theo thời khóa biểu'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-600 hidden sm:inline">
+                      {cls.currentStudents || 0}/{cls.maxStudents || 10} HV
+                    </span>
+                    <button
+                      onClick={() => navigateTo('attendance')}
+                      className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                    >
+                      Điểm danh
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-600 hidden sm:inline">
-                    {cls.currentStudents}/{cls.maxStudents} HV
-                  </span>
-                  <button
-                    onClick={() => navigateTo('attendance')}
-                    className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100"
-                  >
-                    Điểm danh
-                  </button>
+              ))
+            ) : (
+              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-2">
+                <div className="w-10 h-10 rounded-xl bg-slate-200/60 text-slate-500 flex items-center justify-center mx-auto">
+                  <CalendarDays className="w-5 h-5" />
                 </div>
+                <p className="text-xs font-bold text-slate-700">Chưa có lớp học nào trong hệ thống</p>
+                <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                  Tạo các lớp học nhạc mới để bắt đầu xếp lịch giảng dạy và điểm danh học viên.
+                </p>
+                <button
+                  onClick={() => navigateTo('classes')}
+                  className="mt-2 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl transition-all cursor-pointer inline-flex items-center gap-1"
+                >
+                  <span>+ Quản Lý Lớp Học</span>
+                </button>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -428,51 +457,60 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             </div>
             <button
               onClick={() => navigateTo('star_ranking')}
-              className="text-xs font-bold text-amber-700 hover:text-amber-800"
+              className="text-xs font-bold text-amber-700 hover:text-amber-800 cursor-pointer"
             >
               Xem tất cả →
             </button>
           </div>
 
           <div className="space-y-2.5">
-            {(starLeaderboard || []).slice(0, 5).map((item, idx) => (
-              <div 
-                key={item.studentId}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
-                    idx === 0 ? 'bg-amber-400 text-slate-900' :
-                    idx === 1 ? 'bg-slate-300 text-slate-900' :
-                    idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {idx + 1}
-                  </span>
-                  {item.avatar ? (
-                    <img src={item.avatar} alt={item.studentName} className="w-7 h-7 rounded-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold">
-                      {item.studentName.charAt(0)}
+            {starLeaderboard && starLeaderboard.length > 0 ? (
+              starLeaderboard.slice(0, 5).map((item, idx) => (
+                <div 
+                  key={item.studentId}
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
+                      idx === 0 ? 'bg-amber-400 text-slate-900' :
+                      idx === 1 ? 'bg-slate-300 text-slate-900' :
+                      idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {idx + 1}
+                    </span>
+                    {item.avatar ? (
+                      <img src={item.avatar} alt={item.studentName} className="w-7 h-7 rounded-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold">
+                        {item.studentName.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 truncate max-w-[110px]">{item.studentName}</p>
+                      <p className="text-[10px] text-slate-500">{item.rankTitle}</p>
                     </div>
-                  )}
-                  <div>
-                    <p className="text-xs font-bold text-slate-900 truncate max-w-[110px]">{item.studentName}</p>
-                    <p className="text-[10px] text-slate-500">{item.rankTitle}</p>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-xs font-black text-amber-600">
+                    <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                    <span>{item.totalStars} sao</span>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1 text-xs font-black text-amber-600">
-                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                  <span>{item.totalStars} sao</span>
-                </div>
+              ))
+            ) : (
+              <div className="p-6 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-1">
+                <p className="text-xs font-bold text-slate-700">Chưa có bảng sao</p>
+                <p className="text-[10px] text-slate-500">
+                  Điểm sao sẽ hiển thị khi học viên nhận sao thưởng từ giáo viên.
+                </p>
               </div>
-            ))}
+            )}
           </div>
 
           <div className="pt-2 border-t border-slate-100">
             <button
               onClick={() => navigateTo('rewards')}
-              className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+              className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
               <Award className="w-4 h-4 text-amber-600" />
               <span>Kho Đổi Quà Thưởng Học Viên</span>
