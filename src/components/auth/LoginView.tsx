@@ -223,7 +223,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div>
             <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1.5">
-              Email hoặc Tên đăng nhập:
+              Tài khoản (Email, Mã HV/PH, SĐT hoặc Username):
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -236,7 +236,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
                   if (error) setError(null);
                   if (successNotice) setSuccessNotice(null);
                 }}
-                placeholder="Nhập email hoặc tên đăng nhập của bạn"
+                placeholder="VD: HV001, PH001, 0909112233, minhanh..."
                 autoComplete="username"
                 className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-slate-400"
               />
@@ -267,7 +267,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
                   setPassword(e.target.value);
                   if (error) setError(null);
                 }}
-                placeholder="Nhập mật khẩu"
+                placeholder="Nhập mật khẩu (Mặc định: 123456 hoặc student123/parent123)"
                 autoComplete="current-password"
                 className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-slate-400"
               />
@@ -322,6 +322,78 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
           >
             {isLoading ? 'Đang xác thực...' : 'Đăng Nhập Vào Hệ Thống'}
           </button>
+
+          {/* Tài khoản mẫu tiện ích (Quick Fill Helpers) */}
+          <div className="pt-2">
+            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-2 flex items-center justify-between">
+              <span>Gợi ý tài khoản kiểm tra nhanh:</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <button
+                type="button"
+                onClick={() => {
+                  setIdentifier('HV001');
+                  setPassword('student123');
+                  setError(null);
+                }}
+                className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-left hover:border-emerald-500 transition-all cursor-pointer group"
+              >
+                <div className="font-bold text-emerald-700 dark:text-emerald-400 flex items-center justify-between">
+                  <span>Học Viên (Minh Anh)</span>
+                  <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 px-1 rounded">Điền</span>
+                </div>
+                <div className="text-slate-600 dark:text-slate-400 text-[10px] truncate">HV001 • student123</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIdentifier('PH001');
+                  setPassword('parent123');
+                  setError(null);
+                }}
+                className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-left hover:border-amber-500 transition-all cursor-pointer group"
+              >
+                <div className="font-bold text-amber-700 dark:text-amber-400 flex items-center justify-between">
+                  <span>Phụ Huynh (Bố Hùng)</span>
+                  <span className="text-[10px] bg-amber-200 dark:bg-amber-900 px-1 rounded">Điền</span>
+                </div>
+                <div className="text-slate-600 dark:text-slate-400 text-[10px] truncate">PH001 • parent123</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIdentifier('huong.tran');
+                  setPassword('teacher123');
+                  setError(null);
+                }}
+                className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-left hover:border-blue-500 transition-all cursor-pointer group"
+              >
+                <div className="font-bold text-blue-700 dark:text-blue-400 flex items-center justify-between">
+                  <span>Giáo Viên (Mai Hương)</span>
+                  <span className="text-[10px] bg-blue-200 dark:bg-blue-900 px-1 rounded">Điền</span>
+                </div>
+                <div className="text-slate-600 dark:text-slate-400 text-[10px] truncate">huong.tran • teacher123</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIdentifier('admin');
+                  setPassword('admin123');
+                  setError(null);
+                }}
+                className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-left hover:border-purple-500 transition-all cursor-pointer group"
+              >
+                <div className="font-bold text-purple-700 dark:text-purple-400 flex items-center justify-between">
+                  <span>Quản Trị (Admin)</span>
+                  <span className="text-[10px] bg-purple-200 dark:bg-purple-900 px-1 rounded">Điền</span>
+                </div>
+                <div className="text-slate-600 dark:text-slate-400 text-[10px] truncate">admin • admin123</div>
+              </button>
+            </div>
+          </div>
         </form>
 
         {/* Forgot Password Modal */}

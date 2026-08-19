@@ -6,12 +6,14 @@ import { TopThreeHonorPodium } from '../gamification/TopThreeHonorPodium';
 import { PersonalRankCard } from '../gamification/PersonalRankCard';
 import { CourseRegistrationFlowModal } from '../registration/CourseRegistrationFlowModal';
 import { PaymentProofUploadModal } from '../tuition/PaymentProofUploadModal';
-import { Assignment, Submission, RegistrationRequest, MakeupRequest, ReservationRecord, Student } from '../../types';
+import { RequestScheduleChangeModal } from '../common/RequestScheduleChangeModal';
+import { Assignment, Submission, RegistrationRequest, MakeupRequest, ReservationRecord, Student, ScheduleChangeRequest } from '../../types';
 import confetti from 'canvas-confetti';
 import {
   Star,
   Gift,
   Trophy,
+  Calendar,
   CalendarDays,
   FileText,
   Clock,
@@ -91,6 +93,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
     requestReservation,
     registrationRequests,
     submitRegistrationRequest,
+    scheduleChangeRequests,
+    submitScheduleChangeRequest,
     paymentSubmissions,
     submitPaymentReceipt,
     notifications,
@@ -207,6 +211,9 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [proofUrl, setProofUrl] = useState('');
   const [proofNotes, setProofNotes] = useState('');
 
+  // Schedule change request modal
+  const [isScheduleChangeModalOpen, setIsScheduleChangeModalOpen] = useState(false);
+
   // Reset all modal overlays when navigating between tabs
   useEffect(() => {
     setIsProfileOpen(false);
@@ -215,6 +222,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
     setIsMakeupModalOpen(false);
     setIsReservationModalOpen(false);
     setIsPaymentProofModalOpen(false);
+    setIsScheduleChangeModalOpen(false);
   }, [activeMainMenu, activeSubMenu]);
 
   const showToast = (msg: string) => {
@@ -252,6 +260,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const myMakeupRequests = makeupRequests.filter(m => m.studentId === currentStudent.id);
   const myReservations = reservations.filter(r => r.studentId === currentStudent.id);
   const myRegistrationRequests = registrationRequests.filter(r => r.studentId === currentStudent.id);
+  const myScheduleChangeRequests = (scheduleChangeRequests || []).filter(r => r.studentId === currentStudent.id);
   const myPaymentSubmissions = paymentSubmissions.filter(p => p.studentId === currentStudent.id);
   
   // Filter notifications specifically for student (hiding internal birthday alerts)
@@ -1114,23 +1123,53 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         </div>
           )}
 
-          {/* Sub-tab 2.2: Makeup Schedule */}
+          {/* Sub-tab 2.2: Makeup Schedule & Schedule Change */}
           {activeSubMenu === 'makeup_schedule' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Schedule Change Request Box */}
+            <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-purple-100/60 p-5 rounded-3xl border-2 border-purple-300 shadow-xs space-y-3.5 flex flex-col justify-between">
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-purple-600 rounded-2xl text-white shadow-xs">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 font-heading">
+                      Đổi Lịch / Đổi Lớp
+                    </h3>
+                    <span className="text-[10px] font-extrabold bg-purple-200/80 text-purple-900 px-2 py-0.5 rounded-full">
+                      Cần Admin Duyệt
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  Thay đổi ca học, thứ trong tuần hoặc chuyển sang lớp khác cùng bộ môn khi trùng lịch học.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setIsScheduleChangeModalOpen(true)}
+                className="w-full py-3 bg-purple-700 hover:bg-purple-800 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-all"
+              >
+                <Calendar className="w-4 h-4" />
+                <span>Gửi Yêu Cầu Đổi Lịch Học</span>
+              </button>
+            </div>
+
             {/* Makeup Request Box */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between">
-              <div className="space-y-3">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3.5 flex flex-col justify-between">
+              <div className="space-y-2.5">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-amber-50 rounded-2xl text-amber-600">
-                    <CalendarDays className="w-6 h-6" />
+                    <CalendarDays className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="text-base font-black text-slate-900 font-heading">
                       Đăng Ký Học Bù
                     </h3>
                     <p className="text-xs text-slate-500">
-                      Nếu nghỉ học có phép, bạn được xếp lịch học bù miễn phí.
+                      Học bù buổi nghỉ có phép
                     </p>
                   </div>
                 </div>
@@ -1141,42 +1180,105 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
               <button
                 onClick={() => setIsMakeupModalOpen(true)}
-                className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-all"
               >
                 <PlusCircle className="w-4 h-4" />
-                <span>Gửi Yêu Cầu Học Bù Ngay</span>
+                <span>Gửi Yêu Cầu Học Bù</span>
               </button>
             </div>
 
             {/* Reservation Request Box */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between">
-              <div className="space-y-3">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3.5 flex flex-col justify-between">
+              <div className="space-y-2.5">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600">
-                    <Clock className="w-6 h-6" />
+                    <Clock className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="text-base font-black text-slate-900 font-heading">
                       Bảo Lưu Khóa Học
                     </h3>
                     <p className="text-xs text-slate-500">
-                      Bảo lưu học phí và số buổi học còn lại khi bận thi cử/công tác.
+                      Bảo lưu buổi khi bận thi cử
                     </p>
                   </div>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Thời hạn bảo lưu tối đa lên tới 3 tháng. Số buổi còn lại sẽ được kích hoạt lại khi bạn quay trở lại học.
+                  Thời hạn bảo lưu tối đa 3 tháng. Số buổi còn lại được kích hoạt lại khi quay trở lại học.
                 </p>
               </div>
 
               <button
                 onClick={() => setIsReservationModalOpen(true)}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-all"
               >
                 <Clock className="w-4 h-4" />
                 <span>Gửi Đơn Xin Bảo Lưu</span>
               </button>
             </div>
+          </div>
+
+          {/* Schedule Change Requests History */}
+          <div className="bg-white p-5 rounded-3xl border border-purple-200/80 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm text-slate-900 font-heading flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-purple-600" />
+                <span>Lịch Sử Đơn Xin Đổi Lịch Học / Chuyển Lớp ({myScheduleChangeRequests.length})</span>
+              </h3>
+              <button
+                onClick={() => setIsScheduleChangeModalOpen(true)}
+                className="text-xs font-bold text-purple-700 hover:text-purple-800 underline cursor-pointer"
+              >
+                + Gửi đơn mới
+              </button>
+            </div>
+
+            {myScheduleChangeRequests.length === 0 ? (
+              <p className="text-xs text-slate-400 italic p-3 bg-slate-50 rounded-xl">Bạn chưa gửi yêu cầu đổi lịch học nào.</p>
+            ) : (
+              <div className="space-y-2.5">
+                {myScheduleChangeRequests.map(req => (
+                  <div key={req.id} className="p-4 bg-purple-50/40 rounded-2xl border border-purple-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-slate-900">
+                          {req.currentClassName || 'Lớp hiện tại'} → {req.targetClassName || req.desiredScheduleText || 'Lịch mới'}
+                        </span>
+                        <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-[10px] font-bold rounded">
+                          {req.currentSubject || 'Môn học'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600">
+                        Lý do: <i>"{req.reason}"</i> • Ngày gửi: {req.createdAt}
+                      </p>
+                      {req.adminResponse && (
+                        <p className="text-[11px] font-semibold text-indigo-900 bg-white p-2 rounded-lg border border-purple-200 inline-block mt-1">
+                          💬 Phản hồi Admin: {req.adminResponse}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="self-end sm:self-center shrink-0">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1 ${
+                        req.status === 'approved' 
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                          : req.status === 'rejected'
+                          ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                          : 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
+                      }`}>
+                        {req.status === 'approved' && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+                        {req.status === 'rejected' && <X className="w-3 h-3 text-rose-600" />}
+                        {req.status === 'pending' && <Clock className="w-3 h-3 text-amber-600" />}
+                        <span>
+                          {req.status === 'approved' ? 'Đã duyệt chuyển lịch' :
+                           req.status === 'rejected' ? 'Admin từ chối' : '⏳ Chờ Admin duyệt'}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Makeup History */}
@@ -1808,6 +1910,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         targetStudent={currentStudent}
         tuition={selectedTuitionId ? tuitionPayments.find(t => t.id === selectedTuitionId) : null}
         onSuccess={() => showToast('🎉 Nộp biên lai học phí thành công! Ban Quản Trị sẽ đối soát và xác nhận.')}
+      />
+
+      {/* MODAL 6: Request Schedule Change */}
+      <RequestScheduleChangeModal
+        isOpen={isScheduleChangeModalOpen}
+        onClose={() => setIsScheduleChangeModalOpen(false)}
+        student={currentStudent}
+        onSuccess={(msg) => showToast(msg)}
       />
 
       {/* User Profile Modal */}

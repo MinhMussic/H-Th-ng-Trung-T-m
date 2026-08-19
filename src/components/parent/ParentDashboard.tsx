@@ -6,12 +6,13 @@ import { TopThreeHonorPodium } from '../gamification/TopThreeHonorPodium';
 import { PersonalRankCard } from '../gamification/PersonalRankCard';
 import { CourseRegistrationFlowModal } from '../registration/CourseRegistrationFlowModal';
 import { PaymentProofUploadModal } from '../tuition/PaymentProofUploadModal';
+import { RequestScheduleChangeModal } from '../common/RequestScheduleChangeModal';
 import { TwoLevelSubTabs } from '../layout/TwoLevelSubTabs';
 import { PARENT_NAV_CONFIG } from '../../config/navigationData';
 import { StudentDocumentsLibrary } from '../student/StudentDocumentsLibrary';
 import { StudentAccountSettings } from '../student/StudentAccountSettings';
 import { RealtimeGreetingCard } from '../common/RealtimeGreetingCard';
-import { Assignment, Submission, TuitionPayment, RegistrationRequest, MakeupRequest, ReservationRecord } from '../../types';
+import { Assignment, Submission, TuitionPayment, RegistrationRequest, MakeupRequest, ReservationRecord, ScheduleChangeRequest } from '../../types';
 import confetti from 'canvas-confetti';
 import {
   Users,
@@ -102,6 +103,8 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
     requestReservation,
     registrationRequests,
     submitRegistrationRequest,
+    scheduleChangeRequests,
+    submitScheduleChangeRequest,
     paymentSubmissions,
     submitPaymentReceipt,
     notifications,
@@ -145,9 +148,15 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   };
 
   // Find guardian profile
-  const currentGuardian = guardians.find(
-    g => g.id === currentUser?.guardianProfileId || g.email?.toLowerCase() === currentUser?.email?.toLowerCase()
-  ) || guardians[0];
+  const currentGuardian = (guardians && guardians.length > 0)
+    ? guardians.find(
+        g => (currentUser?.guardianProfileId && g.id === currentUser.guardianProfileId) ||
+             (currentUser?.profileId && g.id === currentUser.profileId) ||
+             (currentUser?.profileCode && g.code === currentUser.profileCode) ||
+             (currentUser?.email && g.email && g.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+             (currentUser?.phone && g.phone && g.phone === currentUser.phone)
+      ) || guardians[0]
+    : null;
 
   // Linked children
   const linkedLinks = studentGuardianLinks.filter(l => l.guardianId === currentGuardian?.id && l.status === 'active');
@@ -217,6 +226,9 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
     avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150'
   };
 
+  // Schedule change request modal
+  const [isScheduleChangeModalOpen, setIsScheduleChangeModalOpen] = useState(false);
+
   // Reset all modal overlays when navigating between tabs
   useEffect(() => {
     setIsProfileOpen(false);
@@ -225,6 +237,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
     setIsMakeupModalOpen(false);
     setIsReservationModalOpen(false);
     setIsPaymentProofModalOpen(false);
+    setIsScheduleChangeModalOpen(false);
   }, [activeMainMenu, activeSubMenu]);
 
   const showToast = (msg: string) => {
@@ -262,6 +275,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   const childMakeupRequests = makeupRequests.filter(m => m.studentId === currentChild.id);
   const childReservations = reservations.filter(r => r.studentId === currentChild.id);
   const childRegistrationRequests = registrationRequests.filter(r => r.studentId === currentChild.id);
+  const childScheduleChangeRequests = (scheduleChangeRequests || []).filter(r => r.studentId === currentChild.id);
   const childPaymentSubmissions = paymentSubmissions.filter(p => p.studentId === currentChild.id);
   
   // Filter notifications specifically for parent (hiding internal birthday alerts)
@@ -1183,38 +1197,136 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
             </div>
           )}
 
-          {/* Sub-tab 2.2: Makeup Schedule */}
+          {/* Sub-tab 2.2: Makeup Schedule & Schedule Change */}
           {activeSubMenu === 'makeup_schedule' && (
             <div className="space-y-6">
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-amber-50 rounded-2xl text-amber-600">
-                        <CalendarDays className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-black text-slate-900 font-heading">
-                          Xin Nghỉ & Đăng Ký Học Bù Cho Con
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          Gửi đơn xin nghỉ trước để trung tâm sắp xếp lịch học bù miễn phí cho bé.
-                        </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Schedule Change Request Box */}
+                <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-purple-100/60 p-6 rounded-3xl border-2 border-purple-300 shadow-xs space-y-4 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-purple-600 rounded-2xl text-white shadow-xs">
+                          <CalendarDays className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-black text-slate-900 font-heading">
+                            Xin Đổi Lịch / Chuyển Lớp Cho Bé
+                          </h3>
+                          <span className="text-[10px] font-extrabold bg-purple-200/80 text-purple-900 px-2 py-0.5 rounded-full">
+                            Cần Admin Duyệt
+                          </span>
+                        </div>
                       </div>
                     </div>
-
-                    <button
-                      onClick={() => setIsMakeupModalOpen(true)}
-                      className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center gap-2 shadow-xs cursor-pointer"
-                    >
-                      <PlusCircle className="w-4 h-4" />
-                      <span>Gửi Đơn Xin Nghỉ & Học Bù</span>
-                    </button>
+                    <p className="text-xs text-slate-700 leading-relaxed">
+                      Phụ huynh có thể yêu cầu đổi khung giờ học, ca học trong tuần hoặc chuyển sang lớp khác cùng bộ môn cho bé.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Trung tâm cam kết dạy bù đầy đủ 100% số buổi cho học viên khi có đơn xin nghỉ hợp lệ từ phụ huynh.
-                  </p>
+
+                  <button
+                    onClick={() => setIsScheduleChangeModalOpen(true)}
+                    className="w-full py-3 bg-purple-700 hover:bg-purple-800 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-all"
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                    <span>Gửi Yêu Cầu Đổi Lịch Học</span>
+                  </button>
                 </div>
+
+                {/* Makeup Request Box */}
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-amber-50 rounded-2xl text-amber-600">
+                          <CalendarDays className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-black text-slate-900 font-heading">
+                            Xin Nghỉ & Đăng Ký Học Bù
+                          </h3>
+                          <p className="text-xs text-slate-500">
+                            Báo nghỉ trước để xếp học bù miễn phí
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Trung tâm cam kết dạy bù đầy đủ 100% số buổi cho học viên khi có đơn xin nghỉ hợp lệ từ phụ huynh.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setIsMakeupModalOpen(true)}
+                    className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-all"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Gửi Đơn Xin Nghỉ & Học Bù</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Schedule Change Requests History */}
+              <div className="bg-white p-5 rounded-3xl border border-purple-200/80 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-extrabold text-sm text-slate-900 font-heading flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4 text-purple-600" />
+                    <span>Lịch Sử Đơn Đổi Lịch / Chuyển Lớp Của Bé ({childScheduleChangeRequests.length})</span>
+                  </h3>
+                  <button
+                    onClick={() => setIsScheduleChangeModalOpen(true)}
+                    className="text-xs font-bold text-purple-700 hover:text-purple-800 underline cursor-pointer"
+                  >
+                    + Gửi đơn mới
+                  </button>
+                </div>
+
+                {childScheduleChangeRequests.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic p-3 bg-slate-50 rounded-xl">Chưa có yêu cầu đổi lịch học nào.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {childScheduleChangeRequests.map(req => (
+                      <div key={req.id} className="p-4 bg-purple-50/40 rounded-2xl border border-purple-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-slate-900">
+                              {req.currentClassName || 'Lớp hiện tại'} → {req.targetClassName || req.desiredScheduleText || 'Lịch mới'}
+                            </span>
+                            <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-[10px] font-bold rounded">
+                              {req.currentSubject || 'Môn học'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600">
+                            Lý do: <i>"{req.reason}"</i> • Ngày gửi: {req.createdAt}
+                          </p>
+                          {req.adminResponse && (
+                            <p className="text-[11px] font-semibold text-indigo-900 bg-white p-2 rounded-lg border border-purple-200 inline-block mt-1">
+                              💬 Phản hồi Admin: {req.adminResponse}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="self-end sm:self-center shrink-0">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1 ${
+                            req.status === 'approved' 
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                              : req.status === 'rejected'
+                              ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                              : 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
+                          }`}>
+                            {req.status === 'approved' && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+                            {req.status === 'rejected' && <X className="w-3 h-3 text-rose-600" />}
+                            {req.status === 'pending' && <Clock className="w-3 h-3 text-amber-600" />}
+                            <span>
+                              {req.status === 'approved' ? 'Đã duyệt chuyển lịch' :
+                               req.status === 'rejected' ? 'Admin từ chối' : '⏳ Chờ Admin duyệt'}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* History */}
@@ -1868,6 +1980,15 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
         isParentView={true}
         parentName={currentGuardian?.fullName || currentUser?.displayName || 'Phụ huynh'}
         onSuccess={() => showToast('🎉 Nộp biên lai học phí cho bé thành công! Ban Quản Trị sẽ đối soát và xác nhận.')}
+      />
+
+      {/* MODAL 6: Request Schedule Change */}
+      <RequestScheduleChangeModal
+        isOpen={isScheduleChangeModalOpen}
+        onClose={() => setIsScheduleChangeModalOpen(false)}
+        student={currentChild}
+        isParent={true}
+        onSuccess={(msg) => showToast(msg)}
       />
 
       {/* User Profile Modal */}

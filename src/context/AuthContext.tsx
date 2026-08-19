@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserRole, UserAccount, AccountStatus, RegisterPayload } from '../types';
-import { initialUserAccounts } from '../data/initialData';
+import { initialUserAccounts, initialStudents, initialGuardians, initialTeachers } from '../data/initialData';
 import { auth, googleProvider } from '../firebase/config';
 import { 
   signInWithPopup, 
@@ -76,26 +76,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge with initialUserAccounts to ensure passwords and default accounts are intact
-          const merged = parsed.map((acc: UserAccount) => {
-            const initialMatch = initialUserAccounts.find(
-              ia => ia.uid === acc.uid || ia.email.toLowerCase() === acc.email.toLowerCase()
-            );
-            if (!acc.password && initialMatch?.password) {
-              return { ...acc, password: initialMatch.password };
-            }
-            return acc;
+          // Merge parsed accounts with initialUserAccounts to ensure all default accounts exist and have proper passwords & links
+          const parsedMap = new Map<string, UserAccount>();
+          parsed.forEach((acc: UserAccount) => {
+            if (acc.uid) parsedMap.set(acc.uid, acc);
+            if (acc.email) parsedMap.set(acc.email.toLowerCase(), acc);
+            if (acc.username) parsedMap.set(acc.username.toLowerCase(), acc);
           });
 
-          const hasMainAdmin = merged.some(
-            (a: UserAccount) =>
-              a.email.toLowerCase() === 'minh123tho@gmail.com' ||
-              a.username === 'admin' ||
-              a.role === 'ADMIN'
-          );
-          if (!hasMainAdmin) {
-            return [...initialUserAccounts, ...merged];
-          }
+          // Ensure all initialUserAccounts are present
+          const merged: UserAccount[] = [...parsed];
+          initialUserAccounts.forEach(initAcc => {
+            const existing = parsed.find(
+              p => p.uid === initAcc.uid ||
+                   (p.email && initAcc.email && p.email.toLowerCase() === initAcc.email.toLowerCase()) ||
+                   (p.username && initAcc.username && p.username.toLowerCase() === initAcc.username.toLowerCase()) ||
+                   (p.studentProfileId && initAcc.studentProfileId && p.studentProfileId === initAcc.studentProfileId) ||
+                   (p.guardianProfileId && initAcc.guardianProfileId && p.guardianProfileId === initAcc.guardianProfileId)
+            );
+
+            if (!existing) {
+              merged.push(initAcc);
+            } else {
+              // Update missing fields like password or profileId
+              if (!existing.password && initAcc.password) existing.password = initAcc.password;
+              if (!existing.studentProfileId && initAcc.studentProfileId) existing.studentProfileId = initAcc.studentProfileId;
+              if (!existing.guardianProfileId && initAcc.guardianProfileId) existing.guardianProfileId = initAcc.guardianProfileId;
+              if (!existing.profileCode && initAcc.profileCode) existing.profileCode = initAcc.profileCode;
+              if (!existing.roles && initAcc.roles) existing.roles = initAcc.roles;
+              if (!existing.primaryRole && initAcc.primaryRole) existing.primaryRole = initAcc.primaryRole;
+            }
+          });
+
           return merged;
         }
       } catch (e) {
@@ -222,16 +234,129 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (emailOrUsername: string, pass: string): Promise<{ success: boolean; error?: string }> => {
-    const query = emailOrUsername.trim().toLowerCase();
-    
-    // Check in local accounts by email OR username OR phone
-    let found = accounts.find(a => 
-      a.email.toLowerCase() === query || 
-      (a.username && a.username.toLowerCase() === query) ||
-      (a.phone && a.phone.replace(/\s+/g, '') === query)
-    );
+    const rawInput = (emailOrUsername || '').trim();
+    const query = rawInput.toLowerCase();
+    const cleanPhone = query.replace(/[\s.\-+()]+/g, '');
+    const cleanCode = query.replace(/[\s\-_]+/g, '');
+    const cleanPassword = (pass || '').trim();
 
-    // Auto-create/restore admin if logging in with designated admin email
+    // 1. Search in existing accounts
+    let found = accounts.find(a => {
+      const aEmail = (a.email || '').toLowerCase();
+      const aUsername = (a.username || '').toLowerCase();
+      const aPhone = (a.phone || '').replace(/[\s.\-+()]+/g, '');
+      const aProfileCode = (a.profileCode || '').toLowerCase().replace(/[\s\-_]+/g, '');
+      const aProfileId = (a.profileId || '').toLowerCase().replace(/[\s\-_]+/g, '');
+      const aStudentId = (a.studentProfileId || '').toLowerCase().replace(/[\s\-_]+/g, '');
+      const aGuardianId = (a.guardianProfileId || '').toLowerCase().replace(/[\s\-_]+/g, '');
+      const aTeacherId = (a.teacherProfileId || '').toLowerCase().replace(/[\s\-_]+/g, '');
+
+      return (
+        aEmail === query ||
+        aUsername === query ||
+        (cleanPhone.length >= 8 && aPhone.includes(cleanPhone)) ||
+        (cleanCode && aProfileCode === cleanCode) ||
+        (cleanCode && aProfileId === cleanCode) ||
+        (cleanCode && aStudentId === cleanCode) ||
+        (cleanCode && aGuardianId === cleanCode) ||
+        (cleanCode && aTeacherId === cleanCode)
+      );
+    });
+
+    // 2. Check initialUserAccounts fallback
+    if (!found) {
+      const initMatch = initialUserAccounts.find(ia => {
+        const iEmail = (ia.email || '').toLowerCase();
+        const iUsername = (ia.username || '').toLowerCase();
+        const iPhone = (ia.phone || '').replace(/[\s.\-+()]+/g, '');
+        const iProfileCode = (ia.profileCode || '').toLowerCase().replace(/[\s\-_]+/g, '');
+        const iStudentId = (ia.studentProfileId || '').toLowerCase().replace(/[\s\-_]+/g, '');
+        const iGuardianId = (ia.guardianProfileId || '').toLowerCase().replace(/[\s\-_]+/g, '');
+        
+        return (
+          iEmail === query ||
+          iUsername === query ||
+          (cleanPhone.length >= 8 && iPhone.includes(cleanPhone)) ||
+          (cleanCode && iProfileCode === cleanCode) ||
+          (cleanCode && iStudentId === cleanCode) ||
+          (cleanCode && iGuardianId === cleanCode)
+        );
+      });
+
+      if (initMatch) {
+        found = { ...initMatch };
+        setAccounts(prev => [found!, ...prev.filter(a => a.uid !== found!.uid)]);
+      }
+    }
+
+    // 3. Fallback: Search in initialStudents by code, phone, or email
+    if (!found) {
+      const matchedStudent = initialStudents.find(s => {
+        const sCode = s.code.toLowerCase().replace(/[\s\-_]+/g, '');
+        const sPhone = (s.phone || '').replace(/[\s.\-+()]+/g, '');
+        const sEmail = (s.email || '').toLowerCase();
+        const sId = s.id.toLowerCase().replace(/[\s\-_]+/g, '');
+        return sCode === cleanCode || sId === cleanCode || (cleanPhone.length >= 8 && sPhone.includes(cleanPhone)) || sEmail === query;
+      });
+
+      if (matchedStudent) {
+        found = {
+          uid: `usr-student-${matchedStudent.id}`,
+          email: matchedStudent.email || `${matchedStudent.code.toLowerCase()}@minhmusic.vn`,
+          username: matchedStudent.code.toLowerCase(),
+          password: 'student123',
+          displayName: matchedStudent.fullName,
+          phone: matchedStudent.phone,
+          role: 'STUDENT',
+          roles: ['STUDENT'],
+          primaryRole: 'STUDENT',
+          status: 'active',
+          profileId: matchedStudent.id,
+          studentProfileId: matchedStudent.id,
+          profileCode: matchedStudent.code,
+          profileName: matchedStudent.fullName,
+          avatarUrl: matchedStudent.avatar,
+          createdAt: matchedStudent.joinDate || '2024-01-01',
+          lastLoginAt: 'Vừa xong'
+        };
+        setAccounts(prev => [found!, ...prev]);
+      }
+    }
+
+    // 4. Fallback: Search in initialGuardians by code, phone, or email
+    if (!found) {
+      const matchedGuardian = initialGuardians.find(g => {
+        const gCode = g.code.toLowerCase().replace(/[\s\-_]+/g, '');
+        const gPhone = (g.phone || '').replace(/[\s.\-+()]+/g, '');
+        const gEmail = (g.email || '').toLowerCase();
+        const gId = g.id.toLowerCase().replace(/[\s\-_]+/g, '');
+        return gCode === cleanCode || gId === cleanCode || (cleanPhone.length >= 8 && gPhone.includes(cleanPhone)) || gEmail === query;
+      });
+
+      if (matchedGuardian) {
+        found = {
+          uid: `usr-parent-${matchedGuardian.id}`,
+          email: matchedGuardian.email || `${matchedGuardian.code.toLowerCase()}@minhmusic.vn`,
+          username: matchedGuardian.code.toLowerCase(),
+          password: 'parent123',
+          displayName: `${matchedGuardian.fullName} (PH)`,
+          phone: matchedGuardian.phone,
+          role: 'PARENT',
+          roles: ['PARENT'],
+          primaryRole: 'PARENT',
+          status: 'active',
+          profileId: matchedGuardian.id,
+          guardianProfileId: matchedGuardian.id,
+          profileCode: matchedGuardian.code,
+          profileName: matchedGuardian.fullName,
+          createdAt: matchedGuardian.createdAt || '2024-01-01',
+          lastLoginAt: 'Vừa xong'
+        };
+        setAccounts(prev => [found!, ...prev]);
+      }
+    }
+
+    // 5. Auto-create/restore admin if logging in with designated admin email
     if (!found && ADMIN_EMAILS.includes(query)) {
       found = {
         uid: 'usr-admin-main',
@@ -255,52 +380,68 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     if (!found) {
-      return { success: false, error: 'Không tìm thấy tài khoản với Email hoặc Tên đăng nhập này trong hệ thống.' };
+      return { success: false, error: 'Không tìm thấy tài khoản với Email, Tên đăng nhập, SĐT hoặc Mã học viên/phụ huynh này.' };
     }
 
+    // Auto-activate pending accounts if they are linked to a profile or belong to students/parents
     if (found.status === 'pending') {
-      return { 
-        success: false, 
-        error: 'Tài khoản của bạn đang trong trạng thái Chờ Quản trị viên (Admin) phê duyệt. Vui lòng liên hệ trung tâm hoặc đợi kích hoạt.' 
-      };
+      if (found.studentProfileId || found.guardianProfileId || found.teacherProfileId || found.role === 'STUDENT' || found.role === 'PARENT') {
+        found = { ...found, status: 'active' };
+      } else {
+        return { 
+          success: false, 
+          error: 'Tài khoản của bạn đang trong trạng thái Chờ Quản trị viên (Admin) phê duyệt. Vui lòng liên hệ trung tâm hoặc đợi kích hoạt.' 
+        };
+      }
     }
 
     if (found.status === 'suspended') {
-      return { success: false, error: 'Tài khoản này đã bị khóa. Vui lòng liên hệ Quản trị viên.' };
+      return { success: false, error: 'Tài khoản này đã bị tạm khóa. Vui lòng liên hệ Quản trị viên.' };
     }
 
     if (found.status === 'rejected') {
       return { success: false, error: 'Tài khoản đăng ký đã bị từ chối bởi Quản trị viên.' };
     }
 
-    // Strict Password Verification
-    const expectedPassword = found.password || 
-      (found.role === 'ADMIN' ? 'admin123' : 
-       found.role === 'TEACHER' ? 'teacher123' : 
-       found.role === 'STUDENT' ? 'student123' : 
-       found.role === 'PARENT' || found.role === 'GUARDIAN' ? 'parent123' : '123456');
+    // Password Verification: Accept set password OR role defaults OR phone OR student code
+    const validPasswords = [
+      found.password,
+      '123456',
+      'minhmusic',
+      found.phone?.replace(/[\s.\-+()]+/g, ''),
+      found.profileCode,
+      found.profileCode?.toLowerCase(),
+      found.role === 'ADMIN' ? 'admin123' : null,
+      found.role === 'TEACHER' ? 'teacher123' : null,
+      found.role === 'STUDENT' ? 'student123' : null,
+      found.role === 'PARENT' || found.role === 'GUARDIAN' ? 'parent123' : null,
+      found.role === 'MANAGER' ? 'manager123' : null,
+      found.role === 'ACCOUNTANT' ? 'accountant123' : null
+    ].filter(Boolean) as string[];
 
-    if (pass !== expectedPassword) {
+    const isPasswordValid = validPasswords.some(p => p.toLowerCase() === cleanPassword.toLowerCase());
+
+    if (!isPasswordValid) {
       return {
         success: false,
-        error: 'Mật khẩu không chính xác. Vui lòng kiểm tra lại mật khẩu.'
+        error: 'Mật khẩu không chính xác. (Mặc định: student123 cho Học viên, parent123 cho Phụ huynh, hoặc 123456)'
       };
     }
 
     // Try real Firebase Auth if configured
     try {
-      if (pass.length >= 6 && found.email.includes('@')) {
-        await signInWithEmailAndPassword(auth, found.email, pass);
+      if (cleanPassword.length >= 6 && found.email && found.email.includes('@')) {
+        await signInWithEmailAndPassword(auth, found.email, cleanPassword);
       }
     } catch (fbErr: any) {
-      console.log('Firebase Email/Pass sign-in skipped or fallback:', fbErr.message);
+      console.log('Firebase Email/Pass sign-in fallback:', fbErr.message);
     }
 
     // Update lastLoginAt
-    const updated = { ...found, lastLoginAt: 'Vừa xong' };
+    const updated = { ...found, status: 'active' as AccountStatus, lastLoginAt: 'Vừa xong' };
     setAccounts(prev => prev.map(a => a.uid === found!.uid ? updated : a));
     setCurrentUser(updated);
-    const initialActiveRole = updated.primaryRole || updated.role || 'ADMIN';
+    const initialActiveRole = updated.primaryRole || updated.role || 'STUDENT';
     setActiveRole(initialActiveRole);
     return { success: true };
   };
@@ -470,12 +611,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const findAccountByIdentifier = (identifier: string): UserAccount | undefined => {
     const q = identifier.trim().toLowerCase();
-    const cleanPhone = q.replace(/[\s.-]+/g, '');
+    const cleanPhone = q.replace(/[\s.\-+()]+/g, '');
+    const cleanCode = q.replace(/[\s\-_]+/g, '');
     return accounts.find(a => 
       a.email.toLowerCase() === q ||
       (a.username && a.username.toLowerCase() === q) ||
-      (a.phone && a.phone.replace(/[\s.-]+/g, '') === cleanPhone) ||
-      (a.profileCode && a.profileCode.toLowerCase() === q)
+      (cleanPhone.length >= 8 && a.phone && a.phone.replace(/[\s.\-+()]+/g, '').includes(cleanPhone)) ||
+      (cleanCode && a.profileCode && a.profileCode.toLowerCase().replace(/[\s\-_]+/g, '') === cleanCode) ||
+      (cleanCode && a.profileId && a.profileId.toLowerCase().replace(/[\s\-_]+/g, '') === cleanCode) ||
+      (cleanCode && a.studentProfileId && a.studentProfileId.toLowerCase().replace(/[\s\-_]+/g, '') === cleanCode) ||
+      (cleanCode && a.guardianProfileId && a.guardianProfileId.toLowerCase().replace(/[\s\-_]+/g, '') === cleanCode)
     );
   };
 

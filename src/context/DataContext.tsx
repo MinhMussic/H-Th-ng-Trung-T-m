@@ -180,8 +180,19 @@ interface DataContextType {
   rejectRegistrationRequest: (requestId: string, reason?: string) => void;
 
   submitScheduleChangeRequest: (req: Omit<ScheduleChangeRequest, 'id' | 'createdAt' | 'status'>) => void;
-  approveScheduleChangeRequest: (requestId: string, adminResponse?: string) => void;
+  approveScheduleChangeRequest: (requestId: string, adminResponse?: string, targetClassId?: string) => void;
   rejectScheduleChangeRequest: (requestId: string, reason?: string) => void;
+  updateStudentCourseAndSchedule: (params: {
+    studentId: string;
+    enrolledSubjects?: string[];
+    enrolledClassIds?: string[];
+    totalLessons?: number;
+    completedLessons?: number;
+    remainingLessons?: number;
+    level?: string;
+    adminNote?: string;
+    notifyUser?: boolean;
+  }) => { success: boolean; message?: string };
 
   submitPaymentReceipt: (sub: Omit<PaymentSubmission, 'id' | 'submittedAt' | 'status'>) => void;
   approvePaymentSubmission: (submissionId: string) => void;
@@ -2817,22 +2828,109 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const submitScheduleChangeRequest = (req: Omit<ScheduleChangeRequest, 'id' | 'createdAt' | 'status'>) => {
+    const student = students.find(s => s.id === req.studentId);
+    const currClass = classes.find(c => c.id === req.currentClassId);
+    const targetClass = req.targetClassId ? classes.find(c => c.id === req.targetClassId) : null;
+
     const newReq: ScheduleChangeRequest = {
       ...req,
       id: generateUniqueId('scr'),
+      studentName: req.studentName || student?.fullName || 'Học viên',
+      studentCode: req.studentCode || student?.code || '',
+      currentClassName: req.currentClassName || currClass?.name || '',
+      currentScheduleText: req.currentScheduleText || currClass?.schedule || currClass?.scheduleTime || '',
+      targetClassName: req.targetClassName || targetClass?.name || '',
+      targetClassId: req.targetClassId || undefined,
       createdAt: new Date().toISOString().split('T')[0],
       status: 'pending'
     };
+
     setScheduleChangeRequests(prev => [newReq, ...prev]);
+
+    // Send push notification to Admin
+    addNotification({
+      title: '📅 Yêu Cầu Đổi Lịch Học / Chuyển Lớp Mới',
+      content: `Học viên ${newReq.studentName} (${newReq.studentCode || 'HV'}) vừa gửi yêu cầu đổi lịch học / chuyển lớp môn ${newReq.currentSubject || currClass?.subject || 'Âm nhạc'}. Lý do: "${newReq.reason}". Vui lòng kiểm tra và duyệt lịch.`,
+      type: 'schedule',
+      severity: 'info',
+      targetRoles: ['ADMIN', 'MANAGER']
+    });
   };
 
-  const approveScheduleChangeRequest = (requestId: string, adminResponse?: string) => {
+  const approveScheduleChangeRequest = (requestId: string, adminResponse?: string, targetClassId?: string) => {
+    const targetReq = scheduleChangeRequests.find(r => r.id === requestId);
+    if (targetReq) {
+      const studentId = targetReq.studentId;
+      const newClassId = targetClassId || targetReq.targetClassId;
+      const oldClassId = targetReq.currentClassId;
+
+      if (newClassId && newClassId !== oldClassId) {
+        // Remove from old class
+        setClasses(prev => prev.map(c => {
+          if (c.id === oldClassId) {
+            const currentIds = c.studentIds || [];
+            return {
+              ...c,
+              studentIds: currentIds.filter(id => id !== studentId),
+              currentStudents: Math.max(0, (c.currentStudents || 1) - 1)
+            };
+          }
+          if (c.id === newClassId) {
+            const currentIds = c.studentIds || [];
+            if (!currentIds.includes(studentId)) {
+              return {
+                ...c,
+                studentIds: [...currentIds, studentId],
+                currentStudents: (c.currentStudents || 0) + 1
+              };
+            }
+          }
+          return c;
+        }));
+
+        // Update student enrolled classes
+        setStudents(prev => prev.map(s => {
+          if (s.id === studentId) {
+            const curClasses = s.enrolledClassIds || [];
+            const updatedClasses = curClasses.filter(id => id !== oldClassId);
+            if (!updatedClasses.includes(newClassId)) {
+              updatedClasses.push(newClassId);
+            }
+            return {
+              ...s,
+              enrolledClassIds: updatedClasses
+            };
+          }
+          return s;
+        }));
+      }
+
+      const assignedClass = classes.find(c => c.id === newClassId);
+      const newScheduleInfo = assignedClass 
+        ? `${assignedClass.name} (${assignedClass.scheduleTime || assignedClass.schedule || 'Lịch mới'})`
+        : targetReq.desiredScheduleDate || targetReq.desiredTimeSlot || 'Lịch học mới';
+
+      // Send notification
+      addNotification({
+        title: '✅ Đổi Lịch Học / Chuyển Lớp Thành Công',
+        content: `Yêu cầu đổi lịch học của học viên ${targetReq.studentName || 'Học viên'} đã được Admin phê duyệt! Lịch học mới áp dụng: ${newScheduleInfo}.${adminResponse ? ` Lời nhắn Admin: "${adminResponse}"` : ''}`,
+        type: 'schedule',
+        severity: 'success',
+        recipientId: studentId,
+        studentId: studentId,
+        studentName: targetReq.studentName,
+        targetRoles: ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT']
+      });
+    }
+
     setScheduleChangeRequests(prev => prev.map(r => {
       if (r.id === requestId) {
         return {
           ...r,
           status: 'approved',
-          adminResponse
+          adminResponse: adminResponse || 'Đã duyệt đổi lịch thành công',
+          reviewedBy: 'Admin',
+          reviewedAt: new Date().toISOString().split('T')[0]
         };
       }
       return r;
@@ -2840,16 +2938,124 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const rejectScheduleChangeRequest = (requestId: string, reason?: string) => {
+    const targetReq = scheduleChangeRequests.find(r => r.id === requestId);
+    if (targetReq) {
+      addNotification({
+        title: '❌ Yêu Cầu Đổi Lịch Học Chưa Được Duyệt',
+        content: `Yêu cầu đổi lịch học của bạn chưa được phê duyệt. Lý do từ Admin: ${reason || 'Lớp đã đủ sĩ số hoặc trùng lịch giáo viên'}. Vui lòng liên hệ trung tâm để chọn ca khác.`,
+        type: 'schedule',
+        severity: 'warning',
+        recipientId: targetReq.studentId,
+        studentId: targetReq.studentId,
+        studentName: targetReq.studentName,
+        targetRoles: ['STUDENT', 'PARENT', 'ADMIN']
+      });
+    }
+
     setScheduleChangeRequests(prev => prev.map(r => {
       if (r.id === requestId) {
         return {
           ...r,
           status: 'rejected',
-          adminResponse: reason
+          adminResponse: reason || 'Chưa thể sắp xếp lịch phù hợp',
+          reviewedBy: 'Admin',
+          reviewedAt: new Date().toISOString().split('T')[0]
         };
       }
       return r;
     }));
+  };
+
+  const updateStudentCourseAndSchedule = (params: {
+    studentId: string;
+    enrolledSubjects?: string[];
+    enrolledClassIds?: string[];
+    totalLessons?: number;
+    completedLessons?: number;
+    remainingLessons?: number;
+    level?: string;
+    adminNote?: string;
+    notifyUser?: boolean;
+  }): { success: boolean; message?: string } => {
+    const {
+      studentId,
+      enrolledSubjects,
+      enrolledClassIds,
+      totalLessons,
+      completedLessons,
+      remainingLessons,
+      level,
+      adminNote,
+      notifyUser = true
+    } = params;
+
+    const student = students.find(s => s.id === studentId);
+    if (!student) {
+      return { success: false, message: 'Không tìm thấy thông tin học viên' };
+    }
+
+    const prevClassIds = student.enrolledClassIds || [];
+    const newClassIds = enrolledClassIds !== undefined ? enrolledClassIds : prevClassIds;
+
+    // Update classes student rosters
+    const removedClassIds = prevClassIds.filter(id => !newClassIds.includes(id));
+    const addedClassIds = newClassIds.filter(id => !prevClassIds.includes(id));
+
+    if (removedClassIds.length > 0 || addedClassIds.length > 0) {
+      setClasses(prev => prev.map(c => {
+        if (removedClassIds.includes(c.id)) {
+          const ids = (c.studentIds || []).filter(id => id !== studentId);
+          return { ...c, studentIds: ids, currentStudents: Math.max(0, ids.length) };
+        }
+        if (addedClassIds.includes(c.id)) {
+          const ids = c.studentIds || [];
+          const newIds = ids.includes(studentId) ? ids : [...ids, studentId];
+          return { ...c, studentIds: newIds, currentStudents: newIds.length };
+        }
+        return c;
+      }));
+    }
+
+    // Update student state
+    setStudents(prev => prev.map(s => {
+      if (s.id === studentId) {
+        const computedTotal = totalLessons !== undefined ? totalLessons : (s.totalLessons || 24);
+        const computedCompleted = completedLessons !== undefined ? completedLessons : (s.completedLessons || 0);
+        const computedRemaining = remainingLessons !== undefined ? remainingLessons : Math.max(0, computedTotal - computedCompleted);
+
+        return {
+          ...s,
+          ...(enrolledSubjects !== undefined && { enrolledSubjects }),
+          ...(enrolledClassIds !== undefined && { enrolledClassIds: newClassIds }),
+          ...(level !== undefined && { level }),
+          totalLessons: computedTotal,
+          completedLessons: computedCompleted,
+          remainingLessons: computedRemaining,
+          notes: adminNote ? `${s.notes ? s.notes + '\n' : ''}[Admin cập nhật khóa/lịch]: ${adminNote}` : s.notes
+        };
+      }
+      return s;
+    }));
+
+    if (notifyUser) {
+      const assignedClassNames = classes
+        .filter(c => newClassIds.includes(c.id))
+        .map(c => `${c.name} (${c.scheduleTime || c.schedule || ''})`)
+        .join(', ');
+
+      addNotification({
+        title: '🔔 Cập Nhật Khóa Học & Lịch Học / Buổi Học',
+        content: `Thông tin khóa học và thời khóa biểu của học viên ${student.fullName} đã được Admin cập nhật. Môn: ${(enrolledSubjects || student.enrolledSubjects || []).join(', ')}. Lớp: ${assignedClassNames || 'Chưa gán lớp'}. Tổng số buổi: ${totalLessons !== undefined ? totalLessons : student.totalLessons || 24} buổi.${adminNote ? ` Ghi chú: ${adminNote}` : ''}`,
+        type: 'schedule',
+        severity: 'info',
+        recipientId: studentId,
+        studentId: studentId,
+        studentName: student.fullName,
+        targetRoles: ['STUDENT', 'PARENT', 'ADMIN']
+      });
+    }
+
+    return { success: true, message: 'Đã cập nhật khóa học, buổi học và lịch học thành công!' };
   };
 
   const submitPaymentReceipt = (sub: Omit<PaymentSubmission, 'id' | 'submittedAt' | 'status'>) => {
@@ -3094,6 +3300,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         submitScheduleChangeRequest,
         approveScheduleChangeRequest,
         rejectScheduleChangeRequest,
+        updateStudentCourseAndSchedule,
         submitPaymentReceipt,
         approvePaymentSubmission,
         rejectPaymentSubmission,
