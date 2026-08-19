@@ -36,7 +36,9 @@ import {
   MusicEventType,
   EventAudience,
   TeacherSalaryRecord,
-  TeacherSessionSalaryLog
+  TeacherSessionSalaryLog,
+  Room,
+  MusicLevel
 } from '../types';
 import {
   initialStudents,
@@ -62,7 +64,9 @@ import {
   initialPaymentSubmissions,
   initialHolidays,
   initialEvents,
-  initialTeacherSalaries
+  initialTeacherSalaries,
+  initialRooms,
+  initialLevels
 } from '../data/initialData';
 import { getNextAvailableStudentCode, getNextTrialCode, isStudentCodeProtectedOrLocked } from '../utils/studentCode';
 import { sendInstantAttendancePush, formatAttendancePushMessage } from '../utils/pushNotification';
@@ -129,6 +133,8 @@ interface DataContextType {
   subjects: Subject[];
   courses: Course[];
   classes: ClassItem[];
+  rooms: Room[];
+  levels: MusicLevel[];
   attendance: AttendanceRecord[];
   attendanceRecords: AttendanceRecord[];
   tuitionPayments: TuitionPayment[];
@@ -267,6 +273,31 @@ interface DataContextType {
   addClass: (cls: Omit<ClassItem, 'id'>) => void;
   updateClass: (id: string, updates: Partial<ClassItem>) => void;
   deleteClass: (id: string) => void;
+
+  // Rooms CRUD (Quản lý Phòng học)
+  addRoom: (room: Omit<Room, 'id' | 'createdAt'>) => void;
+  updateRoom: (id: string, updates: Partial<Room>) => void;
+  deleteRoom: (id: string) => { success: boolean; error?: string };
+
+  // Music Levels CRUD (Cấu hình Trình độ)
+  addLevel: (level: Omit<MusicLevel, 'id'>) => void;
+  updateLevel: (id: string, updates: Partial<MusicLevel>) => void;
+  deleteLevel: (id: string) => void;
+
+  // Direct Registration helper for Admin / Parent / Student
+  registerStudentCourse: (params: {
+    studentId: string;
+    subjectId?: string;
+    courseId?: string;
+    level?: string;
+    durationPackage?: string;
+    durationMonths?: number;
+    totalLessons?: number;
+    fee?: number;
+    targetClassId?: string;
+    note?: string;
+    autoApprove?: boolean;
+  }) => { success: boolean; message?: string };
 
   // Attendance
   recordAttendance: (record: Omit<AttendanceRecord, 'id'>) => void;
@@ -440,6 +471,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const list = loaded !== null && Array.isArray(loaded) ? loaded : initialClasses;
     return sanitizeUniqueCollection(list, 'cls');
   });
+  const [rooms, setRooms] = useState<Room[]>(() => {
+    const loaded = loadInitial<Room[] | null>('rooms', null);
+    const list = loaded !== null && Array.isArray(loaded) ? loaded : initialRooms;
+    return sanitizeUniqueCollection(list, 'room');
+  });
+  const [levels, setLevels] = useState<MusicLevel[]>(() => {
+    const loaded = loadInitial<MusicLevel[] | null>('levels', null);
+    const list = loaded !== null && Array.isArray(loaded) ? loaded : initialLevels;
+    return sanitizeUniqueCollection(list, 'lvl');
+  });
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => {
     const loaded = loadInitial<AttendanceRecord[] | null>('attendance', null);
     const list = loaded !== null && Array.isArray(loaded) ? loaded : initialAttendance;
@@ -548,6 +589,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => { localStorage.setItem(PREFIX + 'subjects', JSON.stringify(subjects)); }, [subjects]);
   useEffect(() => { localStorage.setItem(PREFIX + 'courses', JSON.stringify(courses)); }, [courses]);
   useEffect(() => { localStorage.setItem(PREFIX + 'classes', JSON.stringify(classes)); }, [classes]);
+  useEffect(() => { localStorage.setItem(PREFIX + 'rooms', JSON.stringify(rooms)); }, [rooms]);
+  useEffect(() => { localStorage.setItem(PREFIX + 'levels', JSON.stringify(levels)); }, [levels]);
   useEffect(() => { localStorage.setItem(PREFIX + 'attendance', JSON.stringify(attendance)); }, [attendance]);
   useEffect(() => { localStorage.setItem(PREFIX + 'tuition', JSON.stringify(tuitionPayments)); }, [tuitionPayments]);
   useEffect(() => { localStorage.setItem(PREFIX + 'bdt_templates', JSON.stringify(birthdayTemplates)); }, [birthdayTemplates]);
@@ -1014,6 +1057,185 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const deleteClass = (id: string) => {
     setClasses(prev => prev.filter(c => c.id !== id));
+  };
+
+  // Rooms CRUD (Quản lý Phòng học)
+  const addRoom = (roomData: Omit<Room, 'id' | 'createdAt'>) => {
+    const newRoom: Room = {
+      ...roomData,
+      id: generateUniqueId('room'),
+      createdAt: new Date().toISOString()
+    };
+    setRooms(prev => [newRoom, ...prev]);
+  };
+
+  const updateRoom = (id: string, updates: Partial<Room>) => {
+    setRooms(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+    // Nếu đổi tên phòng, đồng bộ cập nhật tên phòng trong các lớp học đang xếp tại phòng này
+    if (updates.name) {
+      setClasses(prev => prev.map(c => {
+        if (c.roomId === id || c.room === id) {
+          return { ...c, room: updates.name!, roomName: updates.name };
+        }
+        return c;
+      }));
+    }
+  };
+
+  const deleteRoom = (id: string): { success: boolean; error?: string } => {
+    const targetRoom = rooms.find(r => r.id === id);
+    const roomName = targetRoom?.name || '';
+    const activeClassesUsingRoom = classes.filter(c => c.roomId === id || c.room === id || c.room === roomName);
+    if (activeClassesUsingRoom.length > 0) {
+      return {
+        success: false,
+        error: `Không thể xóa vì có ${activeClassesUsingRoom.length} lớp học đang dùng phòng này (${activeClassesUsingRoom.map(c => c.name).join(', ')}). Vui lòng chuyển lớp sang phòng khác trước.`
+      };
+    }
+    setRooms(prev => prev.filter(r => r.id !== id));
+    return { success: true };
+  };
+
+  // Music Levels CRUD (Cấu hình Trình độ)
+  const addLevel = (levelData: Omit<MusicLevel, 'id'>) => {
+    const newLvl: MusicLevel = {
+      ...levelData,
+      id: generateUniqueId('lvl'),
+      order: levelData.order || (levels.length + 1)
+    };
+    setLevels(prev => [...prev, newLvl]);
+  };
+
+  const updateLevel = (id: string, updates: Partial<MusicLevel>) => {
+    setLevels(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
+  };
+
+  const deleteLevel = (id: string) => {
+    setLevels(prev => prev.filter(l => l.id !== id));
+  };
+
+  // Direct Course Registration for Admin / Parent / Student
+  const registerStudentCourse = (params: {
+    studentId: string;
+    subjectId?: string;
+    courseId?: string;
+    level?: string;
+    durationPackage?: string;
+    durationMonths?: number;
+    totalLessons?: number;
+    fee?: number;
+    targetClassId?: string;
+    note?: string;
+    autoApprove?: boolean;
+  }): { success: boolean; message?: string } => {
+    const student = students.find(s => s.id === params.studentId);
+    if (!student) {
+      return { success: false, message: 'Không tìm thấy thông tin học viên.' };
+    }
+
+    const targetSub = subjects.find(s => s.id === params.subjectId) || subjects[0];
+    const subjectName = targetSub?.name || 'Âm nhạc';
+    const targetCourse = courses.find(c => c.id === params.courseId);
+    const courseName = targetCourse?.name || `${subjectName} - Gói ${params.totalLessons || 24} buổi`;
+    const totalLsn = params.totalLessons || targetCourse?.totalLessons || 24;
+    const feeAmount = params.fee || (typeof targetCourse?.fee === 'number' ? targetCourse.fee : 4800000);
+
+    const autoApprove = params.autoApprove ?? true;
+
+    if (autoApprove) {
+      // 1. Cập nhật môn và lớp cho học viên
+      setStudents(prev => prev.map(s => {
+        if (s.id === params.studentId) {
+          const curSubs = s.enrolledSubjects || [];
+          const newSubs = curSubs.includes(subjectName) ? curSubs : [...curSubs, subjectName];
+          const curClasses = s.enrolledClassIds || [];
+          const newClasses = (params.targetClassId && !curClasses.includes(params.targetClassId))
+            ? [...curClasses, params.targetClassId]
+            : curClasses;
+          return {
+            ...s,
+            status: 'active',
+            enrolledSubjects: newSubs,
+            enrolledClassIds: newClasses,
+            totalLessons: (s.totalLessons || 0) + totalLsn,
+            remainingLessons: (s.remainingLessons || 0) + totalLsn
+          };
+        }
+        return s;
+      }));
+
+      // 2. Thêm học viên vào lớp học nếu có targetClassId
+      if (params.targetClassId) {
+        setClasses(prev => prev.map(c => {
+          if (c.id === params.targetClassId) {
+            const sIds = c.studentIds || [];
+            if (!sIds.includes(params.studentId)) {
+              return {
+                ...c,
+                studentIds: [...sIds, params.studentId],
+                currentStudents: (c.currentStudents || 0) + 1
+              };
+            }
+          }
+          return c;
+        }));
+      }
+
+      // 3. Tạo phiếu báo học phí tương ứng
+      const newTuition: TuitionPayment = {
+        id: generateUniqueId('tui'),
+        studentId: student.id,
+        studentName: student.fullName,
+        studentCode: student.code,
+        subjectName,
+        courseName,
+        amount: feeAmount,
+        paidAmount: 0,
+        remainingAmount: feeAmount,
+        dueDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+        status: 'pending',
+        month: `Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`,
+        paymentMethod: 'Chuyển khoản VietQR',
+        note: `Đăng ký khóa học ${subjectName} (${params.level || 'Cơ bản'}, ${totalLsn} buổi). ${params.note || ''}`
+      };
+      setTuitionPayments(prev => [newTuition, ...prev]);
+
+      // 4. Gửi thông báo
+      const notif: NotificationItem = {
+        id: generateUniqueId('notif-reg-done'),
+        title: 'Đăng Ký Khóa Học Thành Công 🎉',
+        content: `Học viên ${student.fullName} (${student.code}) đã được ghi danh môn "${subjectName}" (${params.level || 'Cơ bản'}, ${totalLsn} buổi). Hóa đơn học phí đã được tạo sẵn sàng quét mã VietQR.`,
+        type: 'tuition',
+        createdAt: new Date().toISOString().split('T')[0],
+        isRead: false,
+        recipientId: student.id,
+        studentId: student.id,
+        targetAudience: 'ALL'
+      };
+      setNotifications(prev => [notif, ...prev]);
+
+      return { success: true, message: `Đã đăng ký và xếp lớp thành công cho học viên ${student.fullName}!` };
+    } else {
+      // Tạo yêu cầu đăng ký chờ duyệt
+      submitRegistrationRequest({
+        type: 'COURSE',
+        targetId: params.subjectId || targetSub?.id || 'sub-general',
+        targetName: courseName,
+        studentId: student.id,
+        studentName: student.fullName,
+        studentCode: student.code,
+        subjectId: params.subjectId || targetSub?.id,
+        subjectName,
+        level: params.level || 'Cơ bản',
+        durationPackage: params.durationPackage || `${totalLsn} buổi`,
+        durationMonths: params.durationMonths || 3,
+        totalLessons: totalLsn,
+        estimatedFee: feeAmount,
+        desiredClassId: params.targetClassId,
+        note: params.note || 'Yêu cầu đăng ký từ học viên / phụ huynh'
+      });
+      return { success: true, message: 'Đã gửi yêu cầu đăng ký khóa học đến Admin!' };
+    }
   };
 
   // Student reservation (Bảo lưu tài khoản)
@@ -2837,6 +3059,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         subjects,
         courses,
         classes,
+        rooms,
+        levels,
         attendance,
         attendanceRecords: attendance,
         tuitionPayments,
@@ -2920,6 +3144,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         addClass,
         updateClass,
         deleteClass,
+        addRoom,
+        updateRoom,
+        deleteRoom,
+        addLevel,
+        updateLevel,
+        deleteLevel,
+        registerStudentCourse,
         recordAttendance,
         batchRecordAttendance,
         markAttendance,

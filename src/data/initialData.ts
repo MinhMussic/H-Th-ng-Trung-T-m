@@ -9,14 +9,84 @@ import {
   TuitionPayment, 
   BirthdayTemplate, 
   Assignment, 
-  Submission,
+  Submission, 
   RewardItem, 
-  UserAccount,
-  NotificationItem,
-  CenterHoliday,
-  TeacherSalaryRecord,
-  TeacherSessionSalaryLog
+  UserAccount, 
+  NotificationItem, 
+  CenterHoliday, 
+  TeacherSalaryRecord, 
+  TeacherSessionSalaryLog,
+  Room,
+  MusicLevel
 } from '../types';
+
+// Initial Music Levels (Cấu hình trình độ)
+export const initialLevels: MusicLevel[] = [
+  { id: 'lvl-01', code: 'LV-VOLONG', name: 'Vỡ Lòng / Khởi Động', description: 'Dành cho học viên mới bắt đầu từ số 0 hoặc thiếu nhi 4-6 tuổi', color: 'emerald', order: 1 },
+  { id: 'lvl-02', code: 'LV-BASIC', name: 'Cơ Bản (Grade 1 - 2)', description: 'Nhạc lý nền tảng, tiết tấu và kỹ thuật thị tấu / ngón tay cơ bản', color: 'blue', order: 2 },
+  { id: 'lvl-03', code: 'LV-INTER', name: 'Trung Cấp (Grade 3 - 5)', description: 'Tác phẩm cổ điển vừa, chạy ngón tốc độ, hòa âm phức hợp', color: 'amber', order: 3 },
+  { id: 'lvl-04', code: 'LV-ADV', name: 'Nâng Cao (Grade 6 - 8)', description: 'Kỹ thuật diễn cảm sâu, tác phẩm lớn, làm chủ tốc độ & sân khấu', color: 'purple', order: 4 },
+  { id: 'lvl-05', code: 'LV-DEMHAT', name: 'Đệm Hát Thực Chiến', description: 'Ứng dụng hòa âm ca khúc, dịch giọng, intro/outro và solo ngẫu hứng', color: 'orange', order: 5 },
+  { id: 'lvl-06', code: 'LV-ABRSM', name: 'Luyện Thi Chứng Chỉ Quốc Tế (ABRSM / LCM / Trinity)', description: 'Luyện đề, etude, thị tấu và thẩm âm theo chuẩn khảo thí quốc tế', color: 'rose', order: 6 }
+];
+
+// Initial Rooms (Danh sách Phòng học)
+export const initialRooms: Room[] = [
+  {
+    id: 'room-01',
+    code: 'PH-PIA01',
+    name: 'Phòng Grand Piano A1',
+    capacity: 4,
+    status: 'active',
+    facilities: ['Đàn Grand Piano Yamaha C3', 'Máy lạnh Daikin 2HP', 'Bảng nhạc từ tính', 'Ghế điều chỉnh độ cao', 'Gương quan sát ngón'],
+    description: 'Phòng học chuyên sâu Piano cổ điển và luyện thi chứng chỉ quốc tế Trinity/LCM.'
+  },
+  {
+    id: 'room-02',
+    code: 'PH-PIA02',
+    name: 'Phòng Piano Upright A2',
+    capacity: 6,
+    status: 'active',
+    facilities: ['2 Đàn Piano điện Kawai', '1 Đàn Piano cơ Kawai BL-71', 'Máy lạnh', 'Bảng nốt nhạc'],
+    description: 'Phòng thực hành Piano cơ bản và nhóm nhỏ cho học viên mọi lứa tuổi.'
+  },
+  {
+    id: 'room-03',
+    code: 'PH-GUI01',
+    name: 'Phòng Acoustic Studio B1',
+    capacity: 8,
+    status: 'active',
+    facilities: ['Amply Fender Acoustic', 'Giá để đàn gỗ cao cấp', 'Chân gác chân biểu diễn', 'Máy lạnh'],
+    description: 'Phòng hòa tấu Guitar đệm hát, Ukulele và ban nhạc acoustic mộc.'
+  },
+  {
+    id: 'room-04',
+    code: 'PH-VOC01',
+    name: 'Phòng Thanh Nhạc & Thu Âm B2',
+    capacity: 5,
+    status: 'active',
+    facilities: ['Micro Shure SM58', 'Loa kiểm âm JBL Pro', 'Gương toàn thân luyện khẩu hình', 'Tiêu âm cách âm chuẩn phòng thu'],
+    description: 'Phòng luyện thanh, mở khẩu hình và thanh nhạc biểu diễn sân khấu.'
+  },
+  {
+    id: 'room-05',
+    code: 'PH-DRU01',
+    name: 'Phòng Trống Jazz & Band C1',
+    capacity: 6,
+    status: 'active',
+    facilities: ['Bộ Trống Jazz Pearl Export', 'Trống điện tử Roland TD-17', 'Cách âm 100%', 'Tai nghe kiểm âm'],
+    description: 'Phòng thực hành bộ gõ chuyên sâu và luyện tập hòa tấu ban nhạc.'
+  },
+  {
+    id: 'room-06',
+    code: 'PH-KID01',
+    name: 'Phòng Cảm Thụ Âm Nhạc Kids C2',
+    capacity: 10,
+    status: 'active',
+    facilities: ['Bộ nhạc cụ gõ Orff Đức', 'Chuông hòa âm sắc màu', 'Thảm xốp an toàn', 'Bảng nốt sinh động'],
+    description: 'Phòng học cho các bé thiếu nhi 3.5 - 6 tuổi làm quen tiết tấu qua vận động.'
+  }
+];
 
 // Helper to format date relative to today
 const getRelativeDate = (offsetDays: number, yearOffset: number = 0): string => {

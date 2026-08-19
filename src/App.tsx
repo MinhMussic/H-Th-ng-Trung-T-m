@@ -252,6 +252,8 @@ const MainApp: React.FC = () => {
                 {activeTab === 'subjects' && <ClassesCoursesManagement key="tab-subjects" initialSubTab="subjects" />}
                 {activeTab === 'courses' && <ClassesCoursesManagement key="tab-courses" initialSubTab="courses" />}
                 {activeTab === 'classes' && <ClassesCoursesManagement key="tab-classes" initialSubTab="classes" />}
+                {activeTab === 'rooms' && <ClassesCoursesManagement key="tab-rooms" initialSubTab="rooms" />}
+                {activeTab === 'levels' && <ClassesCoursesManagement key="tab-levels" initialSubTab="levels" />}
                 {activeTab === 'schedules' && <ClassesCoursesManagement key="tab-schedules" initialSubTab="schedules" />}
 
                 {/* Attendance section */}

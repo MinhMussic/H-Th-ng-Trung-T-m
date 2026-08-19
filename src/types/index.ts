@@ -194,6 +194,34 @@ export interface Teacher {
   bankHolder?: string;
 }
 
+export interface MusicLevel {
+  id: string;
+  code: string; // 'LV-VOLONG', 'LV-BASIC', 'LV-INTER', 'LV-ADV', 'LV-DEMHAT', 'LV-ABRSM'
+  name: string; // 'Vỡ Lòng / Nhập Môn', 'Cơ Bản', 'Trung Cấp', 'Nâng Cao', 'Đệm Hát', 'Luyện Thi'
+  description?: string;
+  color?: string; // 'emerald' | 'blue' | 'amber' | 'purple' | 'orange' | 'rose'
+  order?: number;
+  applicableSubjects?: string[];
+}
+
+export interface Room {
+  id: string;
+  code: string; // 'PH-PIA01', 'PH-GUI01'
+  name: string; // 'Phòng Grand Piano A1'
+  capacity?: number; // Sức chứa tối đa (học viên)
+  branchId?: string;
+  branchName?: string;
+  location?: string;
+  facilities?: string[]; // ['Đàn Grand Piano Yamaha', 'Máy lạnh', 'Bảng nhạc']
+  instruments?: string | string[];
+  equipment?: string[];
+  equipmentNotes?: string;
+  notes?: string;
+  status: 'active' | 'maintenance' | 'inactive' | 'available' | 'in_use';
+  description?: string;
+  createdAt?: string;
+}
+
 export interface Subject {
   id: string;
   code: string;
@@ -213,6 +241,7 @@ export interface Course {
   subject?: string;
   subjectName?: string;
   level?: 'Cơ bản' | 'Trung cấp' | 'Nâng cao' | 'Luyện thi' | 'Thiếu nhi' | 'Đệm hát' | 'Chuyên sâu' | string;
+  levelId?: string;
   totalLessons?: number;
   sessionDurationMinutes?: number; // e.g. 60 (1 giờ / buổi)
   sessionDurationText?: string; // e.g. '1h / buổi'
@@ -229,7 +258,7 @@ export interface ClassTeacher {
   teacherId: string;
   teacherName?: string;
   teacherCode?: string;
-  roleInClass: ClassTeacherRole; // 'lead' (GV Chính), 'assistant' (GV Phụ), 'substitute' (GV Thay thế), 'specialist' (Trợ giảng)
+  roleInClass: ClassTeacherRole; // 'lead' (GV Chính), 'assistant' (GV Phụ), 'substitute' (GV Thay thế), 'specialist' (Trợ giảng/Chuyên đề)
   roleTitle?: string; // Tên hiển thị: 'Giáo viên chính', 'Giáo viên phụ', 'Trợ giảng', 'GV Thay thế'
   subjects?: string[];
   startDate: string;
@@ -244,20 +273,27 @@ export interface MusicClass {
   subject?: string;
   subjectId?: string;
   subjectName?: string;
+  level?: string;
+  levelId?: string;
   courseId?: string;
   courseName?: string;
-  teacherId: string; // Primary lead teacher (for backward compatibility)
+  teacherId: string; // Primary lead teacher (for backward compatibility & quick access)
   teacherName?: string;
   teacherIds?: string[]; // All assigned teacher IDs (many-to-many)
+  additionalTeachers?: { teacherId: string; role?: string; teacherName?: string }[];
   teachers?: ClassTeacher[]; // Rich relation records for many-to-many
   schedule?: string;
+  scheduleDays?: string[];
+  scheduleTimeSlot?: string;
   scheduleText?: string;
   scheduleTime?: string;
   scheduleDayOfWeek?: number[];
   daysOfWeek?: number[];
   startTime?: string;
   endTime?: string;
+  roomId?: string;
   room: string;
+  roomName?: string;
   maxStudents: number;
   currentStudents?: number;
   studentIds?: string[];
@@ -507,7 +543,9 @@ export interface TuitionPayment {
   revenueSource?: 'tuition' | 'instruments_books' | 'services_other' | string; // Nguồn thu: Học phí, Nhạc cụ/Giáo trình, Phí dịch vụ khác
   discountAmount?: number;
   paidAmount?: number;
+  remainingAmount?: number;
   billingMonth?: string;
+  month?: string;
   sessionsCount?: number;
   paymentDate?: string;
   dueDate: string;
@@ -525,6 +563,7 @@ export interface TuitionPayment {
   paidDate?: string;
   createdAt?: string;
   notes?: string;
+  note?: string;
 }
 
 export type RevenueSourceCategory = 'all' | 'tuition' | 'instruments_books' | 'services_other';
@@ -647,6 +686,8 @@ export interface TenantBranding {
   centerName: string;
   subName: string;
   slogan: string;
+  tagline?: string;
+  phone?: string;
   logoType: 'icon' | 'image';
   logoUrl?: string;
   logoIcon: 'Music' | 'Sparkles' | 'GraduationCap' | 'Award' | 'Building' | 'Headphones' | 'Mic' | 'Radio';
@@ -719,6 +760,8 @@ export type AdminMenuTab =
   | 'subjects'
   | 'courses'
   | 'classes'
+  | 'rooms'
+  | 'levels'
   | 'schedules'
   | 'attendance'
   | 'makeup'

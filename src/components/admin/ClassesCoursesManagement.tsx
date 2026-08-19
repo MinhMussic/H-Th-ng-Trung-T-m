@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
-import { MusicClass, Subject, Course } from '../../types';
+import { MusicClass, Subject, Course, Room, MusicLevel } from '../../types';
 import {
   School,
   BookOpen,
@@ -23,13 +23,19 @@ import {
   Calendar,
   ChevronRight,
   DoorClosed,
+  DoorOpen,
+  Sliders,
   X,
-  Printer
+  Printer,
+  UserCheck
 } from 'lucide-react';
 import { ClassSchedulePrintModal } from './ClassSchedulePrintModal';
+import { RoomManagement } from './RoomManagement';
+import { LevelManagement } from './LevelManagement';
+import { DirectCourseRegistrationModal } from './DirectCourseRegistrationModal';
 
 interface ClassesCoursesManagementProps {
-  initialSubTab?: 'classes' | 'subjects' | 'courses' | 'schedules';
+  initialSubTab?: 'classes' | 'subjects' | 'courses' | 'rooms' | 'levels' | 'schedules';
 }
 
 export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> = ({ initialSubTab = 'classes' }) => {
@@ -39,6 +45,8 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
     courses,
     teachers,
     students,
+    rooms,
+    levels,
     branding,
     addClass,
     updateClass,
@@ -51,7 +59,7 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
     deleteCourse
   } = useData();
 
-  const [activeSubTab, setActiveSubTab] = useState<'classes' | 'subjects' | 'courses' | 'schedules'>(initialSubTab);
+  const [activeSubTab, setActiveSubTab] = useState<'classes' | 'subjects' | 'courses' | 'rooms' | 'levels' | 'schedules'>(initialSubTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('ALL');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -66,6 +74,7 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
       setIsClassModalOpen(false);
       setIsSubjectModalOpen(false);
       setIsCourseModalOpen(false);
+      setIsDirectRegModalOpen(false);
       setEditingClass(null);
       setEditingSubject(null);
       setEditingCourse(null);
@@ -73,6 +82,10 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
   }, [initialSubTab]);
 
   // --- Modal States ---
+  // Direct Registration Modal
+  const [isDirectRegModalOpen, setIsDirectRegModalOpen] = useState(false);
+  const [selectedCourseForReg, setSelectedCourseForReg] = useState<Course | null>(null);
+
   // Class Schedule 1-Page Print Modal
   const [isPrintScheduleModalOpen, setIsPrintScheduleModalOpen] = useState(false);
 
@@ -84,7 +97,10 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
   const [classSubject, setClassSubject] = useState('');
   const [classCourseId, setClassCourseId] = useState('');
   const [classTeacherId, setClassTeacherId] = useState('');
+  const [classAdditionalTeacherIds, setClassAdditionalTeacherIds] = useState<string[]>([]);
+  const [classRoomId, setClassRoomId] = useState('');
   const [classRoom, setClassRoom] = useState('Phòng Piano 01');
+  const [classLevel, setClassLevel] = useState('Cơ bản');
   const [classMaxStudents, setClassMaxStudents] = useState<number>(4);
   const [selectedDays, setSelectedDays] = useState<string[]>(['Thứ 2', 'Thứ 4']);
   const [startTime, setStartTime] = useState('17:30');
@@ -240,11 +256,28 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
     setClassName('Lớp Âm Nhạc Mới');
     setClassSubject(subjects[0]?.name || 'Piano & Keyboard');
     setClassCourseId(courses[0]?.id || '');
-    setClassTeacherId(teachers[0]?.id || '');
+    setClassTeacherId(teachers[0]?.id || 'teacher-minh');
+    setClassAdditionalTeacherIds([]);
     setSelectedDays(['Thứ 2', 'Thứ 4']);
     setStartTime('17:30');
     setEndTime('19:00');
-    setClassRoom('Phòng Piano 01');
+    
+    // Default room from state
+    if (rooms.length > 0) {
+      setClassRoomId(rooms[0].id);
+      setClassRoom(rooms[0].name);
+    } else {
+      setClassRoomId('room-piano-01');
+      setClassRoom('Phòng Piano 01');
+    }
+
+    // Default level
+    if (levels.length > 0) {
+      setClassLevel(levels[0].name);
+    } else {
+      setClassLevel('Cơ bản');
+    }
+
     setClassMaxStudents(4);
     setIsClassModalOpen(true);
   };
@@ -255,8 +288,11 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
     setClassName(cls.name);
     setClassSubject(cls.subject || subjects[0]?.name || 'Piano');
     setClassCourseId(cls.courseId || '');
-    setClassTeacherId(cls.teacherId);
-    setClassRoom(cls.room);
+    setClassTeacherId(cls.teacherId || 'teacher-minh');
+    setClassAdditionalTeacherIds(cls.teacherIds?.filter(id => id !== cls.teacherId) || []);
+    setClassRoomId(cls.roomId || '');
+    setClassRoom(cls.room || cls.roomName || 'Phòng Piano 01');
+    setClassLevel(cls.level || 'Cơ bản');
     setClassMaxStudents(cls.maxStudents);
 
     // Try parse schedule text
@@ -283,8 +319,36 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
       showToast('Vui lòng nhập tên lớp học!');
       return;
     }
-    const selectedTeacher = teachers.find(t => t.id === classTeacherId);
-    const teacherName = selectedTeacher ? selectedTeacher.fullName : 'Chưa phân công';
+
+    // Lead teacher name
+    let teacherName = 'Chưa phân công';
+    if (classTeacherId === 'teacher-minh' || classTeacherId === 'ADMIN_MINH') {
+      teacherName = 'Thầy Minh (Quản lý / GV)';
+    } else {
+      const foundTeacher = teachers.find(t => t.id === classTeacherId);
+      if (foundTeacher) teacherName = foundTeacher.fullName;
+    }
+
+    // Selected Room
+    const foundRoom = rooms.find(r => r.id === classRoomId || r.name === classRoom);
+    const finalRoomName = foundRoom ? foundRoom.name : classRoom;
+    const finalRoomId = foundRoom ? foundRoom.id : (classRoomId || 'room-default');
+
+    // Selected Level
+    const foundLevel = levels.find(l => l.name === classLevel);
+    const finalLevelId = foundLevel?.id;
+
+    // All teachers list
+    const allTeacherIds = Array.from(new Set([classTeacherId, ...classAdditionalTeacherIds].filter(Boolean)));
+    const additionalTeachersData = classAdditionalTeacherIds.map(tId => {
+      const t = teachers.find(item => item.id === tId);
+      return {
+        teacherId: tId,
+        role: 'Giáo viên phụ / Trợ giảng',
+        teacherName: t ? t.fullName : 'Giáo viên'
+      };
+    });
+
     const selectedCourse = courses.find(c => c.id === classCourseId);
     const daysStr = selectedDays.join(' & ') || 'Lịch linh hoạt';
     const scheduleFormatted = `${daysStr} (${startTime} - ${endTime})`;
@@ -299,9 +363,15 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
         courseName: selectedCourse?.name,
         teacherId: classTeacherId,
         teacherName,
+        teacherIds: allTeacherIds,
+        additionalTeachers: additionalTeachersData,
+        roomId: finalRoomId,
+        room: finalRoomName,
+        roomName: finalRoomName,
+        level: classLevel,
+        levelId: finalLevelId,
         schedule: scheduleFormatted,
         scheduleText: scheduleFormatted,
-        room: classRoom,
         maxStudents: classMaxStudents
       });
       showToast(`Đã cập nhật lớp học ${className}`);
@@ -315,9 +385,15 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
         courseName: selectedCourse?.name,
         teacherId: classTeacherId,
         teacherName,
+        teacherIds: allTeacherIds,
+        additionalTeachers: additionalTeachersData,
+        roomId: finalRoomId,
+        room: finalRoomName,
+        roomName: finalRoomName,
+        level: classLevel,
+        levelId: finalLevelId,
         schedule: scheduleFormatted,
         scheduleText: scheduleFormatted,
-        room: classRoom,
         maxStudents: classMaxStudents,
         currentStudents: 0,
         studentIds: [],
@@ -475,14 +551,25 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
           </button>
 
           <button
-            id="tab-schedules"
-            onClick={() => setActiveSubTab('schedules')}
+            id="tab-rooms"
+            onClick={() => setActiveSubTab('rooms')}
             className={`flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[38px] ${
-              activeSubTab === 'schedules' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              activeSubTab === 'rooms' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <CalendarDays className="w-4 h-4 text-indigo-600 shrink-0" />
-            <span>Thời Khóa Biểu Tuần</span>
+            <DoorOpen className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span>Phòng Học ({rooms.length})</span>
+          </button>
+
+          <button
+            id="tab-levels"
+            onClick={() => setActiveSubTab('levels')}
+            className={`flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[38px] ${
+              activeSubTab === 'levels' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Sliders className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Trình Độ ({levels.length})</span>
           </button>
 
           <button
@@ -505,6 +592,17 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
           >
             <Music className="w-4 h-4 text-rose-600 shrink-0" />
             <span>Môn Học ({subjects.length})</span>
+          </button>
+
+          <button
+            id="tab-schedules"
+            onClick={() => setActiveSubTab('schedules')}
+            className={`flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 min-h-[38px] ${
+              activeSubTab === 'schedules' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <CalendarDays className="w-4 h-4 text-purple-600 shrink-0" />
+            <span>Thời Khóa Biểu Tuần</span>
           </button>
         </div>
       </div>
@@ -573,30 +671,43 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
                       </p>
                     )}
 
-                    <div className="space-y-1.5 text-xs text-slate-600 mb-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div className="space-y-1.5 text-xs text-slate-600 mb-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                       <p className="flex items-center gap-2">
                         <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>Giảng viên: <strong className="text-slate-900">{cls.teacherName || 'Chưa phân công'}</strong></span>
+                        <span>GV chính: <strong className="text-slate-900 dark:text-white">{cls.teacherName || 'Chưa phân công'}</strong></span>
                       </p>
+                      {cls.additionalTeachers && cls.additionalTeachers.length > 0 && (
+                        <p className="flex items-center gap-2 text-[11px] text-slate-500">
+                          <UserCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                          <span>GV phụ / Trợ giảng: <strong className="text-indigo-600 dark:text-indigo-400">{cls.additionalTeachers.map(t => t.teacherName).join(', ')}</strong></span>
+                        </p>
+                      )}
                       <p className="flex items-center gap-2">
                         <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        <span className="font-medium text-slate-800">{cls.scheduleText || cls.schedule}</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200">{cls.scheduleText || cls.schedule}</span>
                       </p>
-                      <p className="flex items-center gap-2 text-slate-600">
-                        <DoorClosed className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                        <span>{cls.room || 'Phòng học Minh Music'}</span>
-                      </p>
+                      <div className="flex items-center justify-between pt-1">
+                        <p className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                          <DoorClosed className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                          <span className="font-semibold text-indigo-700 dark:text-indigo-300">{cls.room || cls.roomName || 'Phòng học Minh Music'}</span>
+                        </p>
+                        {cls.level && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100/70 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                            {cls.level}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
                       {cls.subject || cls.subjectName || 'Âm nhạc'}
                     </span>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleOpenEditClass(cls)}
-                        className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 rounded-lg transition-colors cursor-pointer"
                         title="Sửa lớp học"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -608,7 +719,7 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
                             showToast(`Đã xóa lớp học ${cls.name}`);
                           }
                         }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors cursor-pointer"
                         title="Xóa lớp học"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -621,18 +732,32 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
           </div>
 
           {filteredClasses.length === 0 && (
-            <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-              <School className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm font-bold text-slate-600">Không tìm thấy lớp học nào phù hợp</p>
+            <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+              <School className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-400">Không tìm thấy lớp học nào phù hợp</p>
               <button
                 onClick={handleOpenAddClass}
-                className="mt-3 px-4 py-2 text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-xl cursor-pointer"
+                className="mt-3 px-4 py-2 text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 rounded-xl cursor-pointer"
               >
                 + Mở lớp học ngay
               </button>
             </div>
           )}
         </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* SUBTAB: QUẢN LÝ PHÒNG HỌC */}
+      {/* ============================================================ */}
+      {activeSubTab === 'rooms' && (
+        <RoomManagement />
+      )}
+
+      {/* ============================================================ */}
+      {/* SUBTAB: CẤU HÌNH TRÌNH ĐỘ */}
+      {/* ============================================================ */}
+      {activeSubTab === 'levels' && (
+        <LevelManagement />
       )}
 
       {/* ============================================================ */}
@@ -822,14 +947,21 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400">
-                      Mở lớp linh hoạt theo tuần
-                    </span>
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <button
+                      onClick={() => {
+                        setSelectedCourseForReg(crs);
+                        setIsDirectRegModalOpen(true);
+                      }}
+                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                    >
+                      <UserCheck className="w-3.5 h-3.5" />
+                      <span>Ghi danh học viên</span>
+                    </button>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleOpenEditCourse(crs)}
-                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-lg transition-colors cursor-pointer"
                         title="Sửa khóa học"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -841,7 +973,7 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
                             showToast(`Đã xóa khóa học ${crs.name}`);
                           }
                         }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors cursor-pointer"
                         title="Xóa khóa học"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1048,25 +1180,34 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Khóa học liên kết:</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Trình độ (*):</label>
                   <select
-                    value={classCourseId}
-                    onChange={(e) => setClassCourseId(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    value={classLevel}
+                    onChange={(e) => setClassLevel(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
                   >
-                    <option value="">-- Chọn khóa học --</option>
-                    {courses.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
+                    {levels.length > 0 ? (
+                      levels.map(l => (
+                        <option key={l.id} value={l.name}>{l.name} ({l.code})</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Cơ bản">Cơ bản</option>
+                        <option value="Trung cấp">Trung cấp</option>
+                        <option value="Nâng cao">Nâng cao</option>
+                        <option value="Chuyên sâu">Chuyên sâu</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Giảng viên phụ trách:</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Giảng viên chính (*):</label>
                   <select
                     value={classTeacherId}
                     onChange={(e) => setClassTeacherId(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold text-amber-900 dark:text-amber-300 focus:ring-2 focus:ring-amber-500 focus:outline-none"
                   >
+                    <option value="teacher-minh">Thầy Minh (Quản lý chuyên môn / GV Trưởng)</option>
                     {teachers.map(t => (
                       <option key={t.id} value={t.id}>{t.fullName} ({t.code})</option>
                     ))}
@@ -1074,8 +1215,43 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
                 </div>
               </div>
 
+              {/* Giảng viên phụ / Trợ giảng (Multi-teacher assignment) */}
+              <div className="bg-slate-50 dark:bg-slate-800/70 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Giáo viên cùng dạy / Trợ giảng / GV thay thế (1 lớp có thể có nhiều GV):
+                </label>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {teachers
+                    .filter(t => t.id !== classTeacherId)
+                    .map(t => {
+                      const isSelected = classAdditionalTeacherIds.includes(t.id);
+                      return (
+                        <button
+                          type="button"
+                          key={t.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setClassAdditionalTeacherIds(classAdditionalTeacherIds.filter(id => id !== t.id));
+                            } else {
+                              setClassAdditionalTeacherIds([...classAdditionalTeacherIds, t.id]);
+                            }
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600'
+                          }`}
+                        >
+                          <UserCheck className="w-3 h-3" />
+                          <span>{t.fullName}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Chọn ngày học trong tuần:</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Chọn ngày học trong tuần:</label>
                 <div className="flex flex-wrap gap-1.5">
                   {weekDays.map(day => {
                     const isSelected = selectedDays.includes(day);
@@ -1120,26 +1296,38 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Phòng học:</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Phòng học (*):</label>
                   <select
                     value={classRoom}
-                    onChange={(e) => setClassRoom(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 font-medium"
+                    onChange={(e) => {
+                      setClassRoom(e.target.value);
+                      const r = rooms.find(item => item.name === e.target.value);
+                      if (r) setClassRoomId(r.id);
+                    }}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-indigo-700 dark:text-indigo-400"
                   >
-                    {roomsList.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
+                    {rooms.length > 0 ? (
+                      rooms.map(r => (
+                        <option key={r.id} value={r.name}>
+                          {r.name} ({r.code}) - Tối đa {r.capacity} HV
+                        </option>
+                      ))
+                    ) : (
+                      roomsList.map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Sĩ số tối đa:</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Sĩ số tối đa:</label>
                   <input
                     type="number"
                     min={1}
                     max={20}
                     value={classMaxStudents}
                     onChange={(e) => setClassMaxStudents(parseInt(e.target.value, 10) || 4)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 font-bold"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold"
                   />
                 </div>
               </div>
@@ -1379,6 +1567,20 @@ export const ClassesCoursesManagement: React.FC<ClassesCoursesManagementProps> =
             </form>
           </div>
         </div>
+      )}
+      {/* Direct Registration Modal */}
+      {isDirectRegModalOpen && (
+        <DirectCourseRegistrationModal
+          isOpen={isDirectRegModalOpen}
+          onClose={() => {
+            setIsDirectRegModalOpen(false);
+            setSelectedCourseForReg(null);
+          }}
+          initialCourse={selectedCourseForReg}
+          onSuccess={() => {
+            showToast('Đã ghi danh và xếp lớp học viên thành công!');
+          }}
+        />
       )}
     </div>
   );

@@ -402,63 +402,82 @@ export const TopThreeHonorPodium: React.FC<TopThreeHonorPodiumProps> = ({
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               >
-                Tất cả môn
+                🏆 Tất cả môn
               </button>
 
-              <button
-                onClick={() => setSelectedSubject('piano')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
-                  selectedSubject === 'piano'
-                    ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                <span>🎹 Piano</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedSubject('guitar')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
-                  selectedSubject === 'guitar'
-                    ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                <span>🎸 Guitar</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedSubject('thanh nhạc')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
-                  selectedSubject === 'thanh nhạc'
-                    ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                <span>🎤 Thanh Nhạc</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedSubject('violin')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
-                  selectedSubject === 'violin'
-                    ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                <span>🎻 Violin</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedSubject('trống')}
-                className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
-                  selectedSubject === 'trống'
-                    ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                <span>🥁 Trống</span>
-              </button>
+              {subjects && subjects.length > 0 ? (
+                subjects.map(s => {
+                  const isSelected = selectedSubject.toLowerCase() === s.name.toLowerCase() || 
+                    (selectedSubject !== 'all' && s.name.toLowerCase().includes(selectedSubject.toLowerCase()));
+                  const icon = getSubjectIcon(s.name);
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setSelectedSubject(s.name)}
+                      className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
+                        isSelected
+                          ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      <span>{icon} {s.name}</span>
+                    </button>
+                  );
+                })
+              ) : (
+                <>
+                  <button
+                    onClick={() => setSelectedSubject('piano')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
+                      selectedSubject === 'piano'
+                        ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>🎹 Piano</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedSubject('guitar')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
+                      selectedSubject === 'guitar'
+                        ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>🎸 Guitar</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedSubject('thanh nhạc')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
+                      selectedSubject === 'thanh nhạc'
+                        ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>🎤 Thanh Nhạc</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedSubject('violin')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
+                      selectedSubject === 'violin'
+                        ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>🎻 Violin</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedSubject('trống')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
+                      selectedSubject === 'trống'
+                        ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>🥁 Trống</span>
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Search Box */}

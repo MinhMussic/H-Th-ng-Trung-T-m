@@ -37,7 +37,7 @@ export const CourseRegistrationFlowModal: React.FC<CourseRegistrationFlowModalPr
   parentName,
   onSuccess
 }) => {
-  const { subjects, courses, classes, submitRegistrationRequest } = useData();
+  const { subjects, courses, classes, levels, submitRegistrationRequest } = useData();
 
   // Step 1: Chọn Môn
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>(subjects[0]?.id || '');
@@ -315,7 +315,10 @@ export const CourseRegistrationFlowModal: React.FC<CourseRegistrationFlowModalPr
                   Trình độ hiện tại / Mục tiêu:
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {['Cơ bản', 'Trung cấp', 'Nâng cao', 'Thiếu nhi / Vỡ lòng', 'Đệm hát', 'Luyện thi / Chuyên sâu'].map((lvl) => (
+                  {(levels.length > 0
+                    ? levels.map(l => l.name)
+                    : ['Cơ bản', 'Trung cấp', 'Nâng cao', 'Thiếu nhi / Vỡ lòng', 'Đệm hát', 'Luyện thi / Chuyên sâu']
+                  ).map((lvl) => (
                     <button
                       key={lvl}
                       type="button"
